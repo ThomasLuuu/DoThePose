@@ -1,0 +1,116 @@
+# =========================================================
+# Secrets & credentials — NEVER commit
+# =========================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+*.keystore
+*.jks
+secrets/
+credentials.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# =========================================================
+# User data, uploads, generated artifacts
+# =========================================================
+uploads/
+processed/
+backend/uploads/
+backend/processed/
+backend/data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Large ML model binaries (host externally, don't commit)
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+backend/models/
+
+# =========================================================
+# Dependencies
+# =========================================================
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/install-state.gz
+
+# =========================================================
+# Build outputs
+# =========================================================
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# =========================================================
+# Logs & debug
+# =========================================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================================================
+# Test / coverage
+# =========================================================
+coverage/
+.nyc_output/
+test-uploads/
+test-processed/
+
+# =========================================================
+# IDE / editor
+# =========================================================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+.history/
+
+# =========================================================
+# OS
+# =========================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================================================
+# Expo / React Native (mobile-rn/)
+# =========================================================
+mobile-rn/.expo/
+mobile-rn/.expo-shared/
+mobile-rn/web-build/
+mobile-rn/ios/Pods/
+mobile-rn/ios/build/
+mobile-rn/android/.gradle/
+mobile-rn/android/app/build/
+mobile-rn/android/build/
+mobile-rn/android/local.properties
+
+# =========================================================
+# Temp
+# =========================================================
+*.tmp
+*.temp
+*.bak
+*.orig
