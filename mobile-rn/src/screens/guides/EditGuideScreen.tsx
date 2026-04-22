@@ -163,7 +163,7 @@ export const EditGuideScreen: React.FC = () => {
         nextGuide = await apiClient.getGuide(guide.id);
         updateGuideInList(nextGuide);
       }
-      navigation.replace('GuideViewer', { guide: nextGuide });
+      navigation.replace('GuideDetails', { guide: nextGuide });
       navigation.navigate('CameraOverlay', { guide: nextGuide });
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Could not save');

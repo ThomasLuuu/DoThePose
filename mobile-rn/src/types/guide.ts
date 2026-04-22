@@ -13,6 +13,8 @@ export interface Guide {
   tags: string[];
   status: GuideStatus;
   processingError?: string;
+  /** Group ids this guide belongs to. Empty means it lives in the virtual "Created" bucket. */
+  groupIds: string[];
 }
 
 export interface GuideLayers {

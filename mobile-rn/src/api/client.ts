@@ -1,7 +1,18 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { API_CONFIG } from '../config/api';
 import { Guide, GuidesListResponse, GuideSettings } from '../types/guide';
+import { Group, CREATED_GROUP_ID } from '../types/group';
 import { parseGuide } from '../utils/parseGuide';
+
+function parseGroup(data: any): Group {
+  return {
+    id: String(data?.id || ''),
+    name: String(data?.name || ''),
+    createdAt: String(data?.createdAt || new Date().toISOString()),
+    updatedAt: String(data?.updatedAt || new Date().toISOString()),
+    guideCount: Number(data?.guideCount) || 0,
+  };
+}
 
 class ApiClient {
   private client: AxiosInstance;
@@ -169,6 +180,55 @@ class ApiClient {
   async deleteGuide(id: string): Promise<void> {
     await this.client.delete(`/guides/${id}`);
   }
+
+  async getGroups(): Promise<{ groups: Group[]; unassignedCount: number }> {
+    const response = await this.client.get('/groups');
+    const data = response.data.data;
+    return {
+      groups: Array.isArray(data?.groups) ? data.groups.map(parseGroup) : [],
+      unassignedCount: Number(data?.unassignedCount) || 0,
+    };
+  }
+
+  async createGroup(name: string): Promise<Group> {
+    const response = await this.client.post('/groups', { name });
+    return parseGroup(response.data.data);
+  }
+
+  async renameGroup(id: string, name: string): Promise<Group> {
+    const response = await this.client.patch(`/groups/${id}`, { name });
+    return parseGroup(response.data.data);
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    await this.client.delete(`/groups/${id}`);
+  }
+
+  async addGuidesToGroup(id: string, guideIds: string[]): Promise<Group> {
+    const response = await this.client.post(`/groups/${id}/guides`, { guideIds });
+    return parseGroup(response.data.data);
+  }
+
+  async removeGuidesFromGroup(id: string, guideIds: string[]): Promise<Group> {
+    const response = await this.client.delete(`/groups/${id}/guides`, { data: { guideIds } });
+    return parseGroup(response.data.data);
+  }
+
+  /** Pass CREATED_GROUP_ID ('unassigned') to fetch the virtual "Created" bucket. */
+  async getGroupGuides(groupId: string, page: number = 1, pageSize: number = 20): Promise<GuidesListResponse> {
+    const response = await this.client.get(`/groups/${groupId}/guides`, {
+      params: { page, pageSize },
+    });
+    const data = response.data.data;
+    return {
+      guides: Array.isArray(data.guides) ? data.guides.map(parseGuide) : [],
+      total: Number(data.total) || 0,
+      page: Number(data.page) || 1,
+      pageSize: Number(data.pageSize) || 20,
+    };
+  }
 }
+
+export { CREATED_GROUP_ID };
 
 export const apiClient = new ApiClient();

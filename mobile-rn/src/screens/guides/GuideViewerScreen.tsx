@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,9 @@ import { colors, spacing, borderRadius, fontSize } from '../../config/theme';
 import { Guide } from '../../types/guide';
 import { getFullImageUrl } from '../../config/api';
 import { useGuidesStore } from '../../store/guidesStore';
+import { useGroupsStore } from '../../store/groupsStore';
 import { apiClient } from '../../api/client';
+import { AddToGroupModal } from '../../components/AddToGroupModal';
 
 type RouteParams = {
   GuideViewer: { guide: Guide };
@@ -33,8 +35,17 @@ export const GuideViewerScreen: React.FC = () => {
   const [guide, setGuide] = useState<Guide>(initialGuide);
   const [opacity, setOpacity] = useState(Number(guide.settings.opacity) || 0.4);
   const [showControls, setShowControls] = useState(true);
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
 
-  const { toggleFavorite, deleteGuide, updateGuideInList } = useGuidesStore();
+  const { deleteGuide, updateGuideInList } = useGuidesStore();
+  const groups = useGroupsStore((s) => s.groups);
+  const loadGroups = useGroupsStore((s) => s.loadGroups);
+  const createGroupAction = useGroupsStore((s) => s.createGroup);
+  const addGuidesToGroupAction = useGroupsStore((s) => s.addGuidesToGroup);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   const guideImageUrl = getFullImageUrl(guide.guideImageUrl);
 
@@ -70,6 +81,19 @@ export const GuideViewerScreen: React.FC = () => {
 
   const handleUseWithCamera = () => {
     navigation.navigate('CameraOverlay', { guide });
+  };
+
+  const handleAddToGroupPicked = async (groupId: string) => {
+    setAddToGroupOpen(false);
+    const ok = await addGuidesToGroupAction(groupId, [guide.id]);
+    if (ok) {
+      const nextIds = Array.from(new Set([...(guide.groupIds || []), groupId]));
+      const updated = { ...guide, groupIds: nextIds };
+      setGuide(updated);
+      updateGuideInList(updated);
+      const target = groups.find((g) => g.id === groupId);
+      Alert.alert('Added', target ? `Added to "${target.name}".` : 'Added to group.');
+    }
   };
 
   return (
@@ -124,6 +148,14 @@ export const GuideViewerScreen: React.FC = () => {
                 <Ionicons name="camera" size={24} color="#fff" />
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => setAddToGroupOpen(true)}
+                accessibilityLabel="Add to group"
+              >
+                <Ionicons name="folder-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.headerButton} onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={24} color="#fff" />
               </TouchableOpacity>
@@ -175,6 +207,14 @@ export const GuideViewerScreen: React.FC = () => {
           </SafeAreaView>
         </>
       )}
+
+      <AddToGroupModal
+        visible={addToGroupOpen}
+        groups={groups}
+        onClose={() => setAddToGroupOpen(false)}
+        onPick={handleAddToGroupPicked}
+        onCreate={createGroupAction}
+      />
     </View>
   );
 };

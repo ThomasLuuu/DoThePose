@@ -29,7 +29,8 @@ type RouteParams = {
   CameraOverlay: { guide: Guide };
 };
 
-type ActiveTool = 'timer' | 'adjust' | 'flip';
+type ActiveTool = 'timer' | 'adjust' | 'flip' | 'linecolor';
+type LineColor = 'dark' | 'light';
 type TimerSec = 0 | 3 | 10;
 type ZoomPreset = '0.5x' | '1x' | '2x' | '3x';
 
@@ -52,6 +53,7 @@ export const CameraOverlayScreen: React.FC = () => {
   const [showGuide, setShowGuide] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
   const [mirrorGuide, setMirrorGuide] = useState(false);
+  const [lineColor, setLineColor] = useState<LineColor>('dark');
   const [activeTool, setActiveTool] = useState<ActiveTool>('adjust');
   const [timerSec, setTimerSec] = useState<TimerSec>(0);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -177,6 +179,11 @@ export const CameraOverlayScreen: React.FC = () => {
   const handleFlip = () => {
     setMirrorGuide(prev => !prev);
     setActiveTool('flip');
+  };
+
+  const handleLineColor = () => {
+    setLineColor(prev => (prev === 'dark' ? 'light' : 'dark'));
+    setActiveTool('linecolor');
   };
 
   const handleAdjust = () => {
@@ -330,7 +337,7 @@ export const CameraOverlayScreen: React.FC = () => {
           <Animated.View style={[styles.guideWrapper, animatedGuideStyle]}>
             <Image
               source={{ uri: guideImageUrl }}
-              style={[styles.guideOverlay, { opacity: guideOpacity }]}
+              style={[styles.guideOverlay, { opacity: guideOpacity, tintColor: lineColor === 'light' ? '#ffffff' : '#000000' }]}
               resizeMode="contain"
             />
           </Animated.View>
@@ -428,6 +435,18 @@ export const CameraOverlayScreen: React.FC = () => {
             />
             <Text style={[styles.toolLabel, mirrorGuide && styles.toolLabelActive]}>
               Flip
+            </Text>
+          </TouchableOpacity>
+
+          {/* Line color toggle: Dark / Light */}
+          <TouchableOpacity style={styles.toolBtn} onPress={handleLineColor}>
+            <Ionicons
+              name={lineColor === 'light' ? 'sunny-outline' : 'moon-outline'}
+              size={22}
+              color={activeTool === 'linecolor' ? dark.accent : '#fff'}
+            />
+            <Text style={[styles.toolLabel, activeTool === 'linecolor' && styles.toolLabelActive]}>
+              {lineColor === 'light' ? 'Light' : 'Dark'}
             </Text>
           </TouchableOpacity>
         </View>

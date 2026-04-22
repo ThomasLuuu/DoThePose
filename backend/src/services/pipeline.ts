@@ -94,6 +94,34 @@ class ProcessingPipeline {
     };
   }
 
+  /**
+   * Converts a Gradio line-art buffer (typically white-background, black strokes)
+   * into a transparent-background dark-line PNG.
+   * Near-white pixels become fully transparent; remaining pixels keep their color.
+   */
+  private async normalizeLineArt(inputBuffer: Buffer): Promise<Buffer> {
+    const { data, info } = await sharp(inputBuffer)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const { width, height } = info;
+    const out = Buffer.from(data);
+
+    for (let i = 0; i < width * height; i++) {
+      const o = i * 4;
+      const r = out[o];
+      const g = out[o + 1];
+      const b = out[o + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (lum > 230 && r > 200 && g > 200 && b > 200) {
+        out[o + 3] = 0;
+      }
+    }
+
+    return sharp(out, { raw: { width, height, channels: 4 } }).png().toBuffer();
+  }
+
   private async processPortraitMode(
     guideId: string,
     imagePath: string,
@@ -115,9 +143,10 @@ class ProcessingPipeline {
       });
 
       const renderStart = Date.now();
-      await sharp(lineArtBuffer).png().toFile(fullGuidePath);
-      await sharp(lineArtBuffer)
-        .resize(200, 200, { fit: 'inside', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      const normalizedGuideBuffer = await this.normalizeLineArt(lineArtBuffer);
+      await sharp(normalizedGuideBuffer).png().toFile(fullGuidePath);
+      await sharp(normalizedGuideBuffer)
+        .resize(200, 200, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toFile(fullThumbPath);
       console.log(`[PIPELINE] portrait_rendering: ${Date.now() - renderStart}ms`);

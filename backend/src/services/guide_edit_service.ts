@@ -301,14 +301,14 @@ class GuideEditService {
     for (const stroke of safeStrokes) {
       if (stroke.length === 1) {
         const p = stroke[0];
-        parts.push(`<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(safeBrush / 2).toFixed(2)}" fill="white" />`);
+        parts.push(`<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(safeBrush / 2).toFixed(2)}" fill="black" />`);
         continue;
       }
       const d = stroke
         .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
         .join(' ');
       parts.push(
-        `<path d="${d}" stroke="white" stroke-width="${safeBrush.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" fill="none" />`
+        `<path d="${d}" stroke="black" stroke-width="${safeBrush.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" fill="none" />`
       );
     }
 
@@ -321,8 +321,7 @@ class GuideEditService {
     const tmpPath = `${fullPath}.erase-${Date.now()}.tmp.png`;
     await sharp(fullPath)
       .ensureAlpha()
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .composite([{ input: Buffer.from(svg), blend: 'over' }])
+      .composite([{ input: Buffer.from(svg), blend: 'dest-out' }])
       .png()
       .toFile(tmpPath);
     await fs.promises.rename(tmpPath, fullPath);

@@ -15,6 +15,7 @@ export const parseGuide = (data: any): Guide => {
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     status: parseStatus(data.status),
     processingError: data.processingError ? String(data.processingError) : undefined,
+    groupIds: Array.isArray(data.groupIds) ? data.groupIds.map(String) : [],
   };
 };
 

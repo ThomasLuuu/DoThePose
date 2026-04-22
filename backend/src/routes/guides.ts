@@ -4,10 +4,21 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import { guidesRepository } from '../repositories/guides_repository';
+import { groupsRepository } from '../repositories/groups_repository';
 import { jobQueue } from '../services/job_queue';
 import { Guide, DEFAULT_SETTINGS, CreateGuideRequest, UpdateGuideRequest } from '../models/guide';
 import { AppError } from '../middleware/errorHandler';
 import { guideEditService, GuideEditMode } from '../services/guide_edit_service';
+
+function withGroupIds<T extends Guide | null>(guide: T): T {
+  if (!guide) { return guide; }
+  return { ...guide, groupIds: groupsRepository.groupIdsForGuide(guide.id) };
+}
+
+function decorateList(guides: Guide[]): Guide[] {
+  const map = groupsRepository.groupIdsForGuides(guides.map((g) => g.id));
+  return guides.map((g) => ({ ...g, groupIds: map.get(g.id) ?? [] }));
+}
 
 const router = Router();
 
@@ -98,7 +109,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response, nex
 
     res.status(201).json({
       status: 'success',
-      data: created
+      data: withGroupIds(created)
     });
   } catch (error) {
     next(error);
@@ -138,7 +149,7 @@ router.get('/', (req: Request, res: Response, next: NextFunction) => {
     res.json({
       status: 'success',
       data: {
-        guides,
+        guides: decorateList(guides),
         total,
         page,
         pageSize
@@ -328,7 +339,7 @@ router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
 
     res.json({
       status: 'success',
-      data: guide
+      data: withGroupIds(guide)
     });
   } catch (error) {
     next(error);
@@ -360,7 +371,7 @@ router.patch('/:id', (req: Request, res: Response, next: NextFunction) => {
 
     res.json({
       status: 'success',
-      data: updated
+      data: withGroupIds(updated)
     });
   } catch (error) {
     next(error);
@@ -370,11 +381,12 @@ router.patch('/:id', (req: Request, res: Response, next: NextFunction) => {
 router.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const guide = guidesRepository.findById(req.params.id);
-    
+
     if (!guide) {
       throw new AppError('Guide not found', 404);
     }
 
+    groupsRepository.removeGuideFromAllGroups(req.params.id);
     guidesRepository.delete(req.params.id);
 
     res.json({

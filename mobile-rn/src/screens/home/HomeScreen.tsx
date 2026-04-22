@@ -1,29 +1,30 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  ListRenderItem,
   ScrollView,
   Image,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { dark, spacing, fontSize, borderRadius } from '../../config/theme';
 import { UploadReferenceCard } from '../../components/UploadReferenceCard';
-import { GuideListRow } from '../../components/GuideListRow';
+import { GroupTile, CreateGroupTile } from '../../components/GroupTile';
+import { TextInputModal } from '../../components/TextInputModal';
 import { EmptyState } from '../../components/EmptyState';
+import { useGroupsStore } from '../../store/groupsStore';
 import { useGuidesStore } from '../../store/guidesStore';
 import { usePoseGuideUpload } from '../../hooks/usePoseGuideUpload';
 import { useSessionRecentsStore } from '../../store/sessionRecentsStore';
-import { Guide } from '../../types/guide';
+import { usePendingUploadStore } from '../../store/pendingUploadStore';
+import { CREATED_GROUP_ID, CREATED_GROUP_NAME, MAX_GROUP_NAME_LENGTH } from '../../types/group';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const RECENT_THUMB = (SCREEN_W - spacing.md * 2 - spacing.sm * 2) / 3;
@@ -31,14 +32,15 @@ const RECENT_THUMB = (SCREEN_W - spacing.md * 2 - spacing.sm * 2) / 3;
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const {
-    guides,
-    isLoading,
+    groups,
+    unassignedCount,
+    isLoading: isLoadingGroups,
     error,
-    hasMore,
-    loadGuides,
-    toggleFavorite,
-    deleteGuide,
-  } = useGuidesStore();
+    loadGroups,
+    createGroup,
+    deleteGroup,
+  } = useGroupsStore();
+  const loadGuides = useGuidesStore((state) => state.loadGuides);
 
   const {
     selectedImage,
@@ -52,70 +54,81 @@ export const HomeScreen: React.FC = () => {
   } = usePoseGuideUpload();
 
   const recents = useSessionRecentsStore((state) => state.recents);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+
+  const pendingUri = usePendingUploadStore((s) => s.pendingUri);
+  const setPendingUri = usePendingUploadStore((s) => s.setPendingUri);
 
   useEffect(() => {
+    loadGroups();
     loadGuides(true);
-  }, [loadGuides]);
+  }, [loadGroups, loadGuides]);
 
-  const handleRefresh = useCallback(() => {
-    loadGuides(true);
-  }, [loadGuides]);
-
-  const handleLoadMore = useCallback(() => {
-    if (!isLoading && hasMore) {
-      loadGuides(false);
-    }
-  }, [isLoading, hasMore, loadGuides]);
-
-  const handleGuidePress = useCallback(
-    (guide: Guide) => {
-      if (guide.status === 'completed') {
-        navigation.navigate('GuideViewer', { guide });
+  useFocusEffect(
+    useCallback(() => {
+      loadGroups();
+      if (pendingUri) {
+        selectImageUri(pendingUri);
+        setPendingUri(null);
       }
-    },
-    [navigation]
+    }, [loadGroups, pendingUri, selectImageUri, setPendingUri]),
   );
 
-  const handleGuideLongPress = useCallback(
-    (guide: Guide) => {
-      Alert.alert('Guide Options', undefined, [
+  const handleRefresh = useCallback(() => {
+    loadGroups();
+    loadGuides(true);
+  }, [loadGroups, loadGuides]);
+
+  const openGroup = useCallback(
+    (groupId: string, groupName: string) => {
+      navigation.navigate('Group', { groupId, groupName });
+    },
+    [navigation],
+  );
+
+  const handleCreateGroup = useCallback(
+    async (name: string) => {
+      setCreateModalVisible(false);
+      const created = await createGroup(name);
+      if (created) {
+        openGroup(created.id, created.name);
+      }
+    },
+    [createGroup, openGroup],
+  );
+
+  const handleLongPressGroup = useCallback(
+    (groupId: string, groupName: string) => {
+      Alert.alert(groupName, undefined, [
         {
-          text: guide.favorite ? 'Remove from Favorites' : 'Add to Favorites',
-          onPress: () => toggleFavorite(guide.id),
-        },
-        {
-          text: 'Delete',
+          text: 'Delete Group',
           style: 'destructive',
           onPress: () => {
             Alert.alert(
-              'Delete Guide',
-              'Are you sure you want to delete this guide?',
+              'Delete Group',
+              `Delete "${groupName}"? Guides inside will move back to Created.`,
               [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => deleteGuide(guide.id),
-                },
-              ]
+                { text: 'Delete', style: 'destructive', onPress: () => deleteGroup(groupId) },
+              ],
             );
           },
         },
         { text: 'Cancel', style: 'cancel' },
       ]);
     },
-    [toggleFavorite, deleteGuide]
+    [deleteGroup],
   );
 
-  const renderItem: ListRenderItem<Guide> = useCallback(
-    ({ item }) => (
-      <GuideListRow
-        guide={item}
-        onPress={() => handleGuidePress(item)}
-        onLongPress={() => handleGuideLongPress(item)}
-      />
-    ),
-    [handleGuidePress, handleGuideLongPress]
+  const openPhotoDetail = useCallback(
+    (capture: { id: string; uri: string; createdAt: number }, index: number) => {
+      navigation.navigate('SavedPhotoDetails', {
+        photo: { id: capture.id, uri: capture.uri, createdAt: capture.createdAt, filename: `${capture.id}.jpg` },
+        allPhotos: recents.map((r) => ({ id: r.id, uri: r.uri, createdAt: r.createdAt, filename: `${r.id}.jpg` })),
+        initialIndex: index,
+      });
+    },
+    [navigation, recents],
   );
 
   const recentPhotosRow = useMemo(() => {
@@ -126,7 +139,7 @@ export const HomeScreen: React.FC = () => {
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Photos</Text>
-          <TouchableOpacity onPress={() => pickImage(false)}>
+          <TouchableOpacity onPress={() => navigation.navigate('SavedGallery')}>
             <Text style={styles.sectionAction}>Gallery</Text>
           </TouchableOpacity>
         </View>
@@ -135,12 +148,12 @@ export const HomeScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.recentsContent}
         >
-          {recents.map((capture) => (
+          {recents.map((capture, index) => (
             <TouchableOpacity
               key={capture.id}
               style={styles.recentThumb}
               activeOpacity={0.8}
-              onPress={() => selectImageUri(capture.uri)}
+              onPress={() => openPhotoDetail(capture, index)}
             >
               <Image
                 source={{ uri: capture.uri }}
@@ -155,12 +168,59 @@ export const HomeScreen: React.FC = () => {
         </ScrollView>
       </View>
     );
-  }, [recents, pickImage, selectImageUri]);
+  }, [recents, navigation, openPhotoDetail]);
 
-  const listHeader = useMemo(
-    () => (
-      <View style={styles.headerBlock}>
-        {/* Top bar */}
+  const groupTiles = useMemo(() => {
+    const items: Array<
+      | { key: string; kind: 'group'; id: string; name: string; count: number; isDefault: boolean }
+      | { key: 'create'; kind: 'create' }
+    > = [];
+
+    items.push({
+      key: CREATED_GROUP_ID,
+      kind: 'group',
+      id: CREATED_GROUP_ID,
+      name: CREATED_GROUP_NAME,
+      count: unassignedCount,
+      isDefault: true,
+    });
+
+    for (const g of groups) {
+      items.push({
+        key: g.id,
+        kind: 'group',
+        id: g.id,
+        name: g.name,
+        count: g.guideCount,
+        isDefault: false,
+      });
+    }
+
+    items.push({ key: 'create', kind: 'create' });
+
+    // pair into rows of 2
+    const rows: typeof items[] = [];
+    for (let i = 0; i < items.length; i += 2) {
+      rows.push(items.slice(i, i + 2));
+    }
+    return rows;
+  }, [groups, unassignedCount]);
+
+  const showEmptyGroupsHint = !isLoadingGroups && groups.length === 0 && unassignedCount === 0;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoadingGroups}
+            onRefresh={handleRefresh}
+            tintColor={dark.primary}
+            colors={[dark.primary]}
+          />
+        }
+      >
         <View style={styles.topBar}>
           <Text style={styles.appTitle}>DoThePose</Text>
           <TouchableOpacity
@@ -173,7 +233,6 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Upload reference card */}
         <UploadReferenceCard
           selectedImage={selectedImage}
           selectedStyle={selectedStyle}
@@ -185,85 +244,67 @@ export const HomeScreen: React.FC = () => {
           onUpload={uploadImage}
         />
 
-        {/* Recent Photos strip (only shown when session captures exist) */}
         {recentPhotosRow}
 
-        {/* Saved Guides section header */}
-        <Text style={styles.sectionTitle}>Saved Guides</Text>
-      </View>
-    ),
-    [
-      navigation,
-      selectedImage,
-      selectedStyle,
-      setSelectedStyle,
-      isUploading,
-      pickImage,
-      clearSelection,
-      uploadImage,
-      recentPhotosRow,
-    ]
-  );
-
-  const listEmpty = useMemo(() => {
-    if (isLoading && guides.length === 0) {
-      return (
-        <View style={styles.emptyCenter}>
-          <ActivityIndicator size="large" color={dark.primary} />
+        <View style={styles.groupsHeader}>
+          <Text style={styles.sectionTitle}>Your Groups</Text>
+          <TouchableOpacity
+            style={styles.headerAction}
+            onPress={() => setCreateModalVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Create new group"
+          >
+            <Ionicons name="add" size={22} color={dark.accent} />
+          </TouchableOpacity>
         </View>
-      );
-    }
-    if (error && guides.length === 0) {
-      return (
-        <EmptyState
-          variant="dark"
-          icon="alert-circle-outline"
-          title="Failed to load guides"
-          subtitle={error}
-        />
-      );
-    }
-    return (
-      <EmptyState
-        variant="dark"
-        icon="images-outline"
-        title="No saved guides"
-        subtitle="Upload a reference above to create your first pose guide"
-      />
-    );
-  }, [isLoading, guides.length, error]);
 
-  const listFooter = useCallback(() => {
-    if (!isLoading || guides.length === 0) {
-      return null;
-    }
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator color={dark.primary} />
-      </View>
-    );
-  }, [isLoading, guides.length]);
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <FlatList
-        data={guides}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
-        ListFooterComponent={listFooter}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading && guides.length > 0}
-            onRefresh={handleRefresh}
-            tintColor={dark.primary}
-            colors={[dark.primary]}
+        {isLoadingGroups && groups.length === 0 ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={dark.primary} />
+          </View>
+        ) : showEmptyGroupsHint ? (
+          <EmptyState
+            variant="dark"
+            icon="folder-outline"
+            title="No guides yet"
+            subtitle="Upload a reference above to create your first pose guide — it'll land in Created."
           />
-        }
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
+        ) : (
+          <View style={styles.grid}>
+            {groupTiles.map((row, rowIdx) => (
+              <View key={`row-${rowIdx}`} style={styles.gridRow}>
+                {row.map((item) =>
+                  item.kind === 'create' ? (
+                    <CreateGroupTile key={item.key} onPress={() => setCreateModalVisible(true)} />
+                  ) : (
+                    <GroupTile
+                      key={item.key}
+                      name={item.name}
+                      guideCount={item.count}
+                      isDefault={item.isDefault}
+                      onPress={() => openGroup(item.id, item.name)}
+                      onLongPress={item.isDefault ? undefined : () => handleLongPressGroup(item.id, item.name)}
+                    />
+                  ),
+                )}
+                {/* pad odd final row */}
+                {row.length === 1 ? <View style={styles.gridSpacer} /> : null}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <TextInputModal
+        visible={createModalVisible}
+        title="New Group"
+        placeholder="Group name"
+        confirmLabel="Create"
+        maxLength={MAX_GROUP_NAME_LENGTH}
+        onCancel={() => setCreateModalVisible(false)}
+        onSubmit={handleCreateGroup}
       />
     </SafeAreaView>
   );
@@ -274,13 +315,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: dark.background,
   },
-  listContent: {
-    flexGrow: 1,
+  content: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  headerBlock: {
     paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   topBar: {
     flexDirection: 'row',
@@ -314,7 +352,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '700',
     color: dark.text,
-    marginBottom: spacing.md,
   },
   sectionAction: {
     fontSize: fontSize.sm,
@@ -346,15 +383,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyCenter: {
-    flex: 1,
-    minHeight: 200,
-    justifyContent: 'center',
+  groupsHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xxl,
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
-  footer: {
-    padding: spacing.lg,
+  headerAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: dark.surface,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    color: dark.error,
+    fontSize: fontSize.sm,
+    marginBottom: spacing.sm,
+  },
+  center: {
+    paddingVertical: spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grid: {
+    gap: spacing.md,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  gridSpacer: {
+    flex: 1,
   },
 });

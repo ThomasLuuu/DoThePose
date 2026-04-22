@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,6 +86,26 @@ export const SessionReviewScreen: React.FC = () => {
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
+  const handleShare = useCallback(async () => {
+    if (selectedIds.size === 0) { return; }
+    const toShare = captures.filter((c) => selectedIds.has(c.id));
+    if (toShare.length === 0) { return; }
+    try {
+      if (toShare.length === 1) {
+        await Share.share({ url: toShare[0].uri });
+      } else {
+        // Share one at a time — iOS share sheet only accepts one URL at a time
+        for (const capture of toShare) {
+          await Share.share({ url: capture.uri });
+        }
+      }
+    } catch (error: any) {
+      if (error.message !== 'The user did not share') {
+        Alert.alert('Share failed', 'Unable to share the selected photos.');
+      }
+    }
+  }, [selectedIds, captures]);
 
   const handleDelete = useCallback(() => {
     if (selectedIds.size === 0) { return; }
@@ -278,7 +299,7 @@ export const SessionReviewScreen: React.FC = () => {
 
           <TouchableOpacity
             style={[styles.actionBtn, !isSelectMode && styles.actionBtnDisabled]}
-            onPress={() => {/* share future enhancement */}}
+            onPress={handleShare}
             disabled={!isSelectMode}
           >
             <Ionicons name="share-outline" size={22} color={isSelectMode ? dark.text : dark.textSecondary} />

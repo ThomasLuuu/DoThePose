@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import guidesRouter from './routes/guides';
+import groupsRouter from './routes/groups';
 import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -29,6 +30,7 @@ app.use('/processed', express.static(path.resolve(processedDir)));
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 
 app.use('/api/guides', guidesRouter);
+app.use('/api/groups', groupsRouter);
 app.use('/api/admin', adminRouter);
 
 app.get('/health', (req, res) => {
