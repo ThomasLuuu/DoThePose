@@ -52,6 +52,24 @@ export async function deleteSavedPhoto(uri: string): Promise<boolean> {
   }
 }
 
+export async function clearAllSavedPhotos(): Promise<number> {
+  try {
+    const photos = await listSavedPhotos();
+    let deletedCount = 0;
+
+    for (const photo of photos) {
+      const deleted = await deleteSavedPhoto(photo.uri);
+      if (deleted) {
+        deletedCount += 1;
+      }
+    }
+
+    return deletedCount;
+  } catch {
+    return 0;
+  }
+}
+
 export async function saveUriToAppStorage(sourceUri: string, id: string): Promise<string> {
   await ensureDir();
   const dest = `${SAVED_DIR}${id}.jpg`;

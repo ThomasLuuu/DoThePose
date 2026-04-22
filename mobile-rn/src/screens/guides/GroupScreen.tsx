@@ -90,7 +90,7 @@ export const GroupScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      loadGroups();
+      loadGroups({ silent: true });
       load();
     }, [loadGroups, load]),
   );

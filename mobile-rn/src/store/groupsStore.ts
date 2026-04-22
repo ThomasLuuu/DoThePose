@@ -8,7 +8,7 @@ interface GroupsState {
   isLoading: boolean;
   error: string | null;
 
-  loadGroups: () => Promise<void>;
+  loadGroups: (opts?: { silent?: boolean }) => Promise<void>;
   createGroup: (name: string) => Promise<Group | null>;
   renameGroup: (id: string, name: string) => Promise<Group | null>;
   deleteGroup: (id: string) => Promise<boolean>;
@@ -24,9 +24,9 @@ export const useGroupsStore = create<GroupsState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  loadGroups: async () => {
+  loadGroups: async ({ silent = false } = {}) => {
     if (get().isLoading) { return; }
-    set({ isLoading: true, error: null });
+    if (!silent) { set({ isLoading: true, error: null }); }
     try {
       const { groups, unassignedCount } = await apiClient.getGroups();
       set({ groups, unassignedCount, isLoading: false });

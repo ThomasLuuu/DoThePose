@@ -66,7 +66,7 @@ export const HomeScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      loadGroups();
+      loadGroups({ silent: true });
       if (pendingUri) {
         selectImageUri(pendingUri);
         setPendingUri(null);

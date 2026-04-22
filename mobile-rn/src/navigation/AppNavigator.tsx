@@ -18,6 +18,9 @@ import { ProcessingScreen } from '../screens/processing/ProcessingScreen';
 import { SavedGalleryScreen } from '../screens/gallery/SavedGalleryScreen';
 import { SavedPhotoDetailsScreen } from '../screens/gallery/SavedPhotoDetailsScreen';
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
+import { TermsScreen } from '../screens/settings/TermsScreen';
+import { PrivacyScreen } from '../screens/settings/PrivacyScreen';
+import { HelpScreen } from '../screens/settings/HelpScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -86,6 +89,21 @@ export const AppNavigator = () => {
           name="Settings"
           component={SettingsScreen}
           options={{ title: 'Settings' }}
+        />
+        <Stack.Screen
+          name="Terms"
+          component={TermsScreen}
+          options={{ title: 'Terms & Conditions' }}
+        />
+        <Stack.Screen
+          name="Privacy"
+          component={PrivacyScreen}
+          options={{ title: 'Privacy Policy' }}
+        />
+        <Stack.Screen
+          name="Help"
+          component={HelpScreen}
+          options={{ title: 'Help' }}
         />
         <Stack.Screen
           name="Processing"
