@@ -116,23 +116,13 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
           activeOpacity={0.85}
         >
           <View style={styles.iconCircle}>
-            <Ionicons name="images-outline" size={28} color={dark.accent} />
+            <Ionicons name="image-outline" size={34} color={dark.accent} />
             <View style={styles.plusBadge}>
-              <Ionicons name="add" size={14} color={dark.background} />
+              <Ionicons name="add" size={16} color={dark.accent} />
             </View>
           </View>
           <Text style={styles.pickerTitle}>Upload Reference</Text>
           <Text style={styles.pickerSubtitle}>Choose photo from gallery</Text>
-          <View style={styles.pickerButtons}>
-            <TouchableOpacity style={styles.pickerButton} onPress={onPickGallery}>
-              <Ionicons name="images-outline" size={20} color={dark.accent} />
-              <Text style={styles.pickerButtonText}>Gallery</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.pickerButton} onPress={onPickCamera}>
-              <Ionicons name="camera-outline" size={20} color={dark.accent} />
-              <Text style={styles.pickerButtonText}>Camera</Text>
-            </TouchableOpacity>
-          </View>
         </TouchableOpacity>
       )}
     </View>
@@ -144,67 +134,45 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   picker: {
-    minHeight: 200,
+    minHeight: 270,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: dark.border,
+    borderColor: '#2A2A2E',
     borderStyle: 'dashed',
-    borderRadius: borderRadius.xl,
-    backgroundColor: dark.surface,
+    borderRadius: 28,
+    backgroundColor: '#07080A',
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: dark.accent,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#15171B',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   plusBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: dark.accent,
+    top: 20,
+    right: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pickerTitle: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.xl,
+    lineHeight: 26,
     fontWeight: '600',
     color: dark.text,
   },
   pickerSubtitle: {
     fontSize: fontSize.sm,
-    color: dark.textSecondary,
+    lineHeight: 18,
     marginTop: spacing.xs,
+    color: dark.textSecondary,
     textAlign: 'center',
-  },
-  pickerButtons: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    gap: spacing.md,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: dark.surfaceMuted,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  pickerButtonText: {
-    color: dark.accent,
-    fontWeight: '600',
-    fontSize: fontSize.sm,
   },
   previewBlock: {
     gap: spacing.md,

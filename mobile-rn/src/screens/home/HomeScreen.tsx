@@ -9,17 +9,24 @@ import {
   TouchableOpacity,
   Alert,
   ListRenderItem,
+  ScrollView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { dark, spacing, fontSize } from '../../config/theme';
+import { dark, spacing, fontSize, borderRadius } from '../../config/theme';
 import { UploadReferenceCard } from '../../components/UploadReferenceCard';
 import { GuideListRow } from '../../components/GuideListRow';
 import { EmptyState } from '../../components/EmptyState';
 import { useGuidesStore } from '../../store/guidesStore';
 import { usePoseGuideUpload } from '../../hooks/usePoseGuideUpload';
+import { useSessionRecentsStore } from '../../store/sessionRecentsStore';
 import { Guide } from '../../types/guide';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const RECENT_THUMB = (SCREEN_W - spacing.md * 2 - spacing.sm * 2) / 3;
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -39,9 +46,12 @@ export const HomeScreen: React.FC = () => {
     setSelectedStyle,
     isUploading,
     pickImage,
+    selectImageUri,
     clearSelection,
     uploadImage,
   } = usePoseGuideUpload();
+
+  const recents = useSessionRecentsStore((state) => state.recents);
 
   useEffect(() => {
     loadGuides(true);
@@ -108,11 +118,51 @@ export const HomeScreen: React.FC = () => {
     [handleGuidePress, handleGuideLongPress]
   );
 
+  const recentPhotosRow = useMemo(() => {
+    if (recents.length === 0) {
+      return null;
+    }
+    return (
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Photos</Text>
+          <TouchableOpacity onPress={() => pickImage(false)}>
+            <Text style={styles.sectionAction}>Gallery</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.recentsContent}
+        >
+          {recents.map((capture) => (
+            <TouchableOpacity
+              key={capture.id}
+              style={styles.recentThumb}
+              activeOpacity={0.8}
+              onPress={() => selectImageUri(capture.uri)}
+            >
+              <Image
+                source={{ uri: capture.uri }}
+                style={styles.recentImage}
+                resizeMode="cover"
+              />
+              <View style={styles.recentBadge}>
+                <Ionicons name="images-outline" size={12} color={dark.text} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }, [recents, pickImage, selectImageUri]);
+
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
+        {/* Top bar */}
         <View style={styles.topBar}>
-          <Text style={styles.appTitle}>PoseGuide</Text>
+          <Text style={styles.appTitle}>DoThePose</Text>
           <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings')}
@@ -123,6 +173,7 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Upload reference card */}
         <UploadReferenceCard
           selectedImage={selectedImage}
           selectedStyle={selectedStyle}
@@ -134,7 +185,10 @@ export const HomeScreen: React.FC = () => {
           onUpload={uploadImage}
         />
 
-        {/* Future: Sample Poses horizontal carousel (assets or API) */}
+        {/* Recent Photos strip (only shown when session captures exist) */}
+        {recentPhotosRow}
+
+        {/* Saved Guides section header */}
         <Text style={styles.sectionTitle}>Saved Guides</Text>
       </View>
     ),
@@ -147,6 +201,7 @@ export const HomeScreen: React.FC = () => {
       pickImage,
       clearSelection,
       uploadImage,
+      recentPhotosRow,
     ]
   );
 
@@ -246,11 +301,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sectionBlock: {
+    marginBottom: spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
     color: dark.text,
     marginBottom: spacing.md,
+  },
+  sectionAction: {
+    fontSize: fontSize.sm,
+    color: dark.textSecondary,
+    fontWeight: '500',
+  },
+  recentsContent: {
+    gap: spacing.sm,
+  },
+  recentThumb: {
+    width: RECENT_THUMB,
+    height: RECENT_THUMB,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: dark.surfaceMuted,
+  },
+  recentImage: {
+    width: '100%',
+    height: '100%',
+  },
+  recentBadge: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    right: spacing.xs,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyCenter: {
     flex: 1,

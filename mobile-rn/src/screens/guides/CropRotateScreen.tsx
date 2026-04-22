@@ -12,11 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { dark, spacing, borderRadius, fontSize } from '../../config/theme';
+import { Guide } from '../../types/guide';
 import {
   containLayout,
   imageRectToLayout,
@@ -36,6 +37,8 @@ type RouteParams = {
     initialWidth?: number;
     initialHeight?: number;
     guideId: string;
+    /** Full guide object passed through so we can return it to EditGuide intact. */
+    guide: Guide;
   };
 };
 
@@ -65,7 +68,7 @@ export const CropRotateScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, 'CropRotate'>>();
   const insets = useSafeAreaInsets();
-  const { sourceUri, initialWidth, initialHeight } = route.params;
+  const { sourceUri, initialWidth, initialHeight, guide } = route.params;
 
   // ── Working image ──
   const [workingUri, setWorkingUri] = useState<string>(sourceUri);
@@ -185,7 +188,10 @@ export const CropRotateScreen: React.FC = () => {
         }],
         { compress: 1, format: ImageManipulator.SaveFormat.PNG }
       );
-      navigation.navigate({ name: 'EditGuide', params: { appliedEditUri: finalResult.uri }, merge: true });
+      // Navigate back with the original guide + the new URI.
+      // Pass guide explicitly so EditGuide always has a valid guide object
+      // (merge:true is unreliable in RN7 native-stack and can drop params).
+      navigation.navigate('EditGuide', { guide, appliedEditUri: finalResult.uri });
     } catch {
       setBaking(false);
     }
@@ -434,7 +440,7 @@ export const CropRotateScreen: React.FC = () => {
           })}
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

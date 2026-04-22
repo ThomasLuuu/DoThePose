@@ -99,22 +99,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: dark.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
+    minHeight: 72,
   },
   leading: {
     marginRight: spacing.md,
   },
   thumb: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: borderRadius.sm,
     backgroundColor: dark.surfaceMuted,
   },
   thumbPlaceholder: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: borderRadius.sm,
     backgroundColor: dark.surfaceMuted,
     alignItems: 'center',
@@ -137,6 +139,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     color: dark.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
   },
 });

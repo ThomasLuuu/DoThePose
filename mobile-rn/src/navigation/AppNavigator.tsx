@@ -9,6 +9,7 @@ import { GuideViewerScreen } from '../screens/guides/GuideViewerScreen';
 import { EditGuideScreen } from '../screens/guides/EditGuideScreen';
 import { CropRotateScreen } from '../screens/guides/CropRotateScreen';
 import { CameraOverlayScreen } from '../screens/guides/CameraOverlayScreen';
+import { SessionReviewScreen } from '../screens/guides/SessionReviewScreen';
 import { ProcessingScreen } from '../screens/processing/ProcessingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -83,6 +84,14 @@ export const AppNavigator = () => {
         <Stack.Screen
           name="CameraOverlay"
           component={CameraOverlayScreen}
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }}
+        />
+        <Stack.Screen
+          name="SessionReview"
+          component={SessionReviewScreen}
           options={{
             headerShown: false,
             presentation: 'fullScreenModal',

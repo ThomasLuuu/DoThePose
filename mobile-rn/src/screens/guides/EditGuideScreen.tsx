@@ -10,7 +10,7 @@ import {
   TextInput,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -129,6 +129,7 @@ export const EditGuideScreen: React.FC = () => {
       navigation.navigate('CropRotate', {
         sourceUri: local,
         guideId: guide.id,
+        guide,
       });
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Could not open crop editor');
@@ -163,6 +164,7 @@ export const EditGuideScreen: React.FC = () => {
         updateGuideInList(nextGuide);
       }
       navigation.replace('GuideViewer', { guide: nextGuide });
+      navigation.navigate('CameraOverlay', { guide: nextGuide });
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Could not save');
     } finally {
@@ -171,9 +173,9 @@ export const EditGuideScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.safe}>
+      {/* Header — explicit insets.top so buttons are never under the status bar */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.xs }]}>
         <TouchableOpacity style={styles.headerIconBtn} onPress={onClose} accessibilityLabel="Close">
           <Ionicons name="close" size={22} color={dark.text} />
         </TouchableOpacity>
@@ -269,7 +271,7 @@ export const EditGuideScreen: React.FC = () => {
           }
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

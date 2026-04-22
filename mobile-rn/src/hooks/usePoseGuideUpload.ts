@@ -70,12 +70,17 @@ export function usePoseGuideUpload() {
     }
   }, [selectedImage, selectedStyle, addGuide, navigation]);
 
+  const selectImageUri = useCallback((uri: string) => {
+    setSelectedImage(uri);
+  }, []);
+
   return {
     selectedImage,
     selectedStyle,
     setSelectedStyle,
     isUploading,
     pickImage,
+    selectImageUri,
     clearSelection,
     uploadImage,
   };

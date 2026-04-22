@@ -7,7 +7,7 @@ export const SettingsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>PoseGuide</Text>
+        <Text style={styles.label}>DoThePose</Text>
         <Text style={styles.hint}>
           App settings will appear here. Use the back button to return home.
         </Text>

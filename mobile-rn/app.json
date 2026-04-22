@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-rn",
-    "slug": "mobile-rn",
+    "name": "DoThePose",
+    "slug": "dothepose",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera access is required to capture photos with pose guide overlay.",
+        "NSMicrophoneUsageDescription": "Microphone access may be required by the camera."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,8 +25,19 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Camera access is required to capture photos with pose guide overlay.",
+          "microphonePermission": "Microphone access may be required by the camera.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
