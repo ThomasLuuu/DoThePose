@@ -7,12 +7,14 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { colors, spacing, borderRadius, fontSize } from '../config/theme';
+import { colors, dark, spacing, borderRadius, fontSize } from '../config/theme';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline';
+  /** Use on dark backgrounds (e.g. home screen) */
+  tone?: 'light' | 'dark';
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
@@ -24,6 +26,7 @@ export const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
   variant = 'primary',
+  tone = 'light',
   loading = false,
   disabled = false,
   icon,
@@ -31,12 +34,15 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
 }) => {
   const isDisabled = disabled || loading;
+  const isDark = tone === 'dark';
 
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        styles[variant],
+        variant === 'primary' && styles.primary,
+        variant === 'secondary' && styles.secondary,
+        variant === 'outline' && (isDark ? styles.outlineDark : styles.outline),
         isDisabled && styles.disabled,
         style,
       ]}
@@ -46,7 +52,13 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'outline' ? colors.primary : '#fff'}
+          color={
+            variant === 'outline'
+              ? isDark
+                ? dark.text
+                : colors.primary
+              : '#fff'
+          }
           size="small"
         />
       ) : (
@@ -55,7 +67,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text
             style={[
               styles.text,
-              variant === 'outline' && styles.outlineText,
+              variant === 'outline' && (isDark ? styles.outlineTextDark : styles.outlineText),
               textStyle,
             ]}
           >
@@ -88,6 +100,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
+  outlineDark: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
   disabled: {
     opacity: 0.5,
   },
@@ -98,5 +115,8 @@ const styles = StyleSheet.create({
   },
   outlineText: {
     color: colors.primary,
+  },
+  outlineTextDark: {
+    color: dark.text,
   },
 });

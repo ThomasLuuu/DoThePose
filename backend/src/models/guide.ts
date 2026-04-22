@@ -5,6 +5,8 @@ export interface Guide {
   sourceImageUrl: string;
   guideImageUrl: string;
   thumbnailUrl: string;
+  /** User-visible label set in Edit Guide. Empty string when not set. */
+  name: string;
   layers: GuideLayers;
   settings: GuideSettings;
   favorite: boolean;
@@ -42,6 +44,8 @@ export interface CreateGuideRequest {
 export interface UpdateGuideRequest {
   favorite?: boolean;
   tags?: string[];
+  /** Trimmed display name; max 120 characters enforced in route handler. */
+  name?: string;
 }
 
 export interface GuideListResponse {

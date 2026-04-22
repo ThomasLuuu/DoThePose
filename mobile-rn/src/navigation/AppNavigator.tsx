@@ -1,76 +1,80 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../config/theme';
+import { dark } from '../config/theme';
 
-import { UploadScreen } from '../screens/upload/UploadScreen';
-import { SavedGuidesScreen } from '../screens/guides/SavedGuidesScreen';
+import { HomeScreen } from '../screens/home/HomeScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { GuideViewerScreen } from '../screens/guides/GuideViewerScreen';
+import { EditGuideScreen } from '../screens/guides/EditGuideScreen';
+import { CropRotateScreen } from '../screens/guides/CropRotateScreen';
 import { CameraOverlayScreen } from '../screens/guides/CameraOverlayScreen';
 import { ProcessingScreen } from '../screens/processing/ProcessingScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
 
-const TabNavigator = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textLight,
-        headerShown: true,
-      }}
-    >
-      <Tab.Screen
-        name="Create"
-        component={UploadScreen}
-        options={{
-          title: 'Create Pose Guide',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Saved"
-        component={SavedGuidesScreen}
-        options={{
-          title: 'Saved Guides',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="images-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
-  );
+const navDarkTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: dark.primary,
+    background: dark.background,
+    card: dark.surface,
+    text: dark.text,
+    border: dark.border,
+    notification: dark.primary,
+  },
 };
 
 export const AppNavigator = () => {
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navDarkTheme}>
       <Stack.Navigator
         screenOptions={{
           headerShown: true,
+          headerStyle: { backgroundColor: dark.background },
+          headerTintColor: dark.text,
+          headerTitleStyle: { color: dark.text },
+          headerShadowVisible: false,
         }}
       >
         <Stack.Screen
           name="Main"
-          component={TabNavigator}
+          component={HomeScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ title: 'Settings' }}
         />
         <Stack.Screen
           name="Processing"
           component={ProcessingScreen}
           options={{
-            title: 'Processing',
+            headerShown: false,
             presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="EditGuide"
+          component={EditGuideScreen}
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
           }}
         />
         <Stack.Screen
           name="GuideViewer"
           component={GuideViewerScreen}
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }}
+        />
+        <Stack.Screen
+          name="CropRotate"
+          component={CropRotateScreen}
           options={{
             headerShown: false,
             presentation: 'fullScreenModal',

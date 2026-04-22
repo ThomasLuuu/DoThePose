@@ -5,6 +5,8 @@ export interface Guide {
   sourceImageUrl: string;
   guideImageUrl: string;
   thumbnailUrl: string;
+  /** User-visible display label. Empty string when not yet named. */
+  name: string;
   layers: GuideLayers;
   settings: GuideSettings;
   favorite: boolean;

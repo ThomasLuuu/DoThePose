@@ -8,6 +8,7 @@ export const parseGuide = (data: any): Guide => {
     sourceImageUrl: String(data.sourceImageUrl || ''),
     guideImageUrl: String(data.guideImageUrl || ''),
     thumbnailUrl: String(data.thumbnailUrl || ''),
+    name: data.name != null ? String(data.name) : '',
     layers: parseLayers(data.layers),
     settings: parseSettings(data.settings),
     favorite: Boolean(data.favorite),

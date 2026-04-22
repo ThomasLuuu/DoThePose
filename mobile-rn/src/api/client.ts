@@ -92,8 +92,77 @@ class ApiClient {
     return parseGuide(response.data.data);
   }
 
-  async updateGuide(id: string, updates: { favorite?: boolean; tags?: string[] }): Promise<Guide> {
+  async updateGuide(id: string, updates: { favorite?: boolean; tags?: string[]; name?: string }): Promise<Guide> {
     const response = await this.client.patch(`/guides/${id}`, updates);
+    return parseGuide(response.data.data);
+  }
+
+  async ensureGuideMode(
+    id: string,
+    mode: 'silhouette'
+  ): Promise<{ imageUrl: string; available: boolean; reason?: string }> {
+    const response = await this.client.post(`/guides/${id}/mode/${mode}`);
+    const data = response.data.data;
+    return {
+      imageUrl: String(data.imageUrl || ''),
+      available: Boolean(data.available),
+      reason: data.reason ? String(data.reason) : undefined,
+    };
+  }
+
+  async cleanGuideBackground(id: string): Promise<Guide> {
+    const response = await this.client.post(`/guides/${id}/clean-background`);
+    return parseGuide(response.data.data);
+  }
+
+  async eraseGuideByStrokes(
+    id: string,
+    payload: {
+      strokes: Array<Array<{ x: number; y: number }>>;
+      brushSize: number;
+    }
+  ): Promise<{ guide: Guide; undoCount: number; redoCount: number }> {
+    const response = await this.client.post(`/guides/${id}/erase`, payload);
+    return {
+      guide: parseGuide(response.data.data),
+      undoCount: Number(response.data.undoCount) || 0,
+      redoCount: Number(response.data.redoCount) || 0,
+    };
+  }
+
+  async undoEraseGuide(id: string): Promise<{ guide: Guide; undoCount: number; redoCount: number }> {
+    const response = await this.client.post(`/guides/${id}/erase-undo`);
+    return {
+      guide: parseGuide(response.data.data),
+      undoCount: Number(response.data.undoCount) || 0,
+      redoCount: Number(response.data.redoCount) || 0,
+    };
+  }
+
+  async redoEraseGuide(id: string): Promise<{ guide: Guide; undoCount: number; redoCount: number }> {
+    const response = await this.client.post(`/guides/${id}/erase-redo`);
+    return {
+      guide: parseGuide(response.data.data),
+      undoCount: Number(response.data.undoCount) || 0,
+      redoCount: Number(response.data.redoCount) || 0,
+    };
+  }
+
+  async uploadGuideImage(id: string, localUri: string): Promise<Guide> {
+    const filename = localUri.split('/').pop() || 'guide.png';
+    const formData = new FormData();
+    formData.append('guideImage', {
+      uri: localUri,
+      name: filename.endsWith('.png') ? filename : `${filename}.png`,
+      type: 'image/png',
+    } as any);
+
+    const response = await this.client.post(`/guides/${id}/guide-image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: API_CONFIG.uploadTimeout,
+    });
     return parseGuide(response.data.data);
   }
 

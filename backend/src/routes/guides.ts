@@ -2,10 +2,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 import { guidesRepository } from '../repositories/guides_repository';
 import { jobQueue } from '../services/job_queue';
 import { Guide, DEFAULT_SETTINGS, CreateGuideRequest, UpdateGuideRequest } from '../models/guide';
 import { AppError } from '../middleware/errorHandler';
+import { guideEditService, GuideEditMode } from '../services/guide_edit_service';
 
 const router = Router();
 
@@ -82,6 +84,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response, nex
       sourceImageUrl,
       guideImageUrl: '',
       thumbnailUrl: '',
+      name: '',
       layers: { pose: false, horizon: false, sun: false, composition: false },
       settings,
       favorite: false,
@@ -146,6 +149,175 @@ router.get('/', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+router.post('/:id/mode/:mode', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id, mode } = req.params;
+    if (mode !== 'skeleton' && mode !== 'silhouette') {
+      throw new AppError('Invalid mode. Use skeleton or silhouette.', 400);
+    }
+
+    const guide = guidesRepository.findById(id);
+    if (!guide) {
+      throw new AppError('Guide not found', 404);
+    }
+    if (guide.status !== 'completed') {
+      throw new AppError('Guide is not ready', 400);
+    }
+
+    const result = await guideEditService.ensureVariant(guide, mode as GuideEditMode);
+    res.json({
+      status: 'success',
+      data: {
+        imageUrl: result.imageUrl,
+        available: result.available,
+        reason: result.reason,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/clean-background', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guide = guidesRepository.findById(req.params.id);
+    if (!guide) {
+      throw new AppError('Guide not found', 404);
+    }
+    if (guide.status !== 'completed') {
+      throw new AppError('Guide is not ready', 400);
+    }
+
+    const updated = await guideEditService.cleanGuideBackground(req.params.id);
+    if (!updated) {
+      throw new AppError('Could not clean background', 400);
+    }
+
+    res.json({
+      status: 'success',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/erase', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guide = guidesRepository.findById(req.params.id);
+    if (!guide) {
+      throw new AppError('Guide not found', 404);
+    }
+    if (guide.status !== 'completed') {
+      throw new AppError('Guide is not ready', 400);
+    }
+
+    const body = req.body as {
+      strokes?: Array<Array<{ x: number; y: number }>>;
+      brushSize?: number;
+    };
+
+    const result = await guideEditService.eraseGuideByStrokes(
+      req.params.id,
+      Array.isArray(body.strokes) ? body.strokes : [],
+      Number(body.brushSize) || 24
+    );
+    if (!result) {
+      throw new AppError('Could not erase guide strokes', 400);
+    }
+
+    res.json({
+      status: 'success',
+      data: result.guide,
+      undoCount: result.undoCount,
+      redoCount: result.redoCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/erase-undo', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await guideEditService.undoErase(req.params.id);
+    if (!result) {
+      throw new AppError('Could not undo erase', 400);
+    }
+    res.json({
+      status: 'success',
+      data: result.guide,
+      undoCount: result.undoCount,
+      redoCount: result.redoCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/erase-redo', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await guideEditService.redoErase(req.params.id);
+    if (!result) {
+      throw new AppError('Could not redo erase', 400);
+    }
+    res.json({
+      status: 'success',
+      data: result.guide,
+      undoCount: result.undoCount,
+      redoCount: result.redoCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  '/:id/guide-image',
+  upload.single('guideImage'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError('No image file provided', 400);
+      }
+
+      const guide = guidesRepository.findById(req.params.id);
+      if (!guide) {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        throw new AppError('Guide not found', 404);
+      }
+      if (guide.status !== 'completed') {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        throw new AppError('Guide is not ready', 400);
+      }
+
+      const updated = await guideEditService.replaceGuideImageFromFile(guide.id, req.file.path);
+
+      try {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!updated) {
+        throw new AppError('Failed to save guide image', 500);
+      }
+
+      res.json({
+        status: 'success',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const guide = guidesRepository.findById(req.params.id);
@@ -178,6 +350,10 @@ router.patch('/:id', (req: Request, res: Response, next: NextFunction) => {
     }
     if (body.tags !== undefined) {
       updates.tags = body.tags;
+    }
+    if (body.name !== undefined) {
+      const trimmed = String(body.name).trim();
+      updates.name = trimmed.length > 120 ? trimmed.slice(0, 120) : trimmed;
     }
 
     const updated = guidesRepository.update(req.params.id, updates);

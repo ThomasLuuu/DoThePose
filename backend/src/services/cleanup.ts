@@ -44,6 +44,8 @@ class CleanupService {
       path.join(this.uploadDir, path.basename(sourceImageUrl)),
       path.join(this.processedDir, `${guideId}_guide.png`),
       path.join(this.processedDir, `${guideId}_thumb.png`),
+      path.join(this.processedDir, `${guideId}_skeleton.png`),
+      path.join(this.processedDir, `${guideId}_silhouette.png`),
     ];
 
     for (const filePath of filesToDelete) {

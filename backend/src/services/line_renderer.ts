@@ -80,6 +80,27 @@ class LineRenderer {
     console.log('Thumbnail saved:', thumbnailPath);
   }
 
+  /** Pose stick figure only (transparent background), for Edit Guide skeleton mode. */
+  async renderPoseOnlyPng(
+    outputPath: string,
+    pose: PoseKeypoints | null,
+    settings: GuideSettings,
+    width: number,
+    height: number
+  ): Promise<void> {
+    const poseLayer = this.renderPoseLayer(pose, settings, width, height);
+    const svg = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="transparent"/>
+        <g id="pose-layer" opacity="${settings.opacity}">
+          ${poseLayer}
+        </g>
+      </svg>
+    `.trim();
+
+    await sharp(Buffer.from(svg)).png().toFile(outputPath);
+  }
+
   private renderPoseLayer(
     pose: PoseKeypoints | null,
     settings: GuideSettings,

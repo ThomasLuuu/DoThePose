@@ -41,13 +41,21 @@ class GuidesRepository {
       CREATE INDEX IF NOT EXISTS idx_guides_status ON guides(status);
       CREATE INDEX IF NOT EXISTS idx_guides_favorite ON guides(favorite);
     `);
+    this.ensureNameColumn();
+  }
+
+  private ensureNameColumn(): void {
+    const cols = this.db.prepare(`PRAGMA table_info(guides)`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === 'name')) {
+      this.db.exec(`ALTER TABLE guides ADD COLUMN name TEXT NOT NULL DEFAULT ''`);
+    }
   }
 
   create(guide: Omit<Guide, 'updatedAt'>): Guide {
     const now = new Date().toISOString();
     const stmt = this.db.prepare(`
-      INSERT INTO guides (id, created_at, updated_at, source_image_url, guide_image_url, thumbnail_url, layers, settings, favorite, tags, status, processing_error)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO guides (id, created_at, updated_at, source_image_url, guide_image_url, thumbnail_url, name, layers, settings, favorite, tags, status, processing_error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -57,6 +65,7 @@ class GuidesRepository {
       guide.sourceImageUrl,
       guide.guideImageUrl || null,
       guide.thumbnailUrl || null,
+      guide.name ?? '',
       JSON.stringify(guide.layers),
       JSON.stringify(guide.settings),
       guide.favorite ? 1 : 0,
@@ -107,6 +116,7 @@ class GuidesRepository {
         updated_at = ?,
         guide_image_url = ?,
         thumbnail_url = ?,
+        name = ?,
         layers = ?,
         settings = ?,
         favorite = ?,
@@ -120,6 +130,7 @@ class GuidesRepository {
       now,
       updated.guideImageUrl || null,
       updated.thumbnailUrl || null,
+      updated.name ?? '',
       JSON.stringify(updated.layers),
       JSON.stringify(updated.settings),
       updated.favorite ? 1 : 0,
@@ -153,6 +164,7 @@ class GuidesRepository {
       sourceImageUrl: row.source_image_url,
       guideImageUrl: row.guide_image_url || '',
       thumbnailUrl: row.thumbnail_url || '',
+      name: row.name != null ? String(row.name) : '',
       layers: JSON.parse(row.layers) as GuideLayers,
       settings: { ...DEFAULT_SETTINGS, ...JSON.parse(row.settings) } as GuideSettings,
       favorite: Boolean(row.favorite),
