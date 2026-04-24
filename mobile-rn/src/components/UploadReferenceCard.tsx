@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { dark, spacing, borderRadius, fontSize } from '../config/theme';
+import { spacing, borderRadius, fontSize } from '../config/theme';
+import { SemanticColors } from '../config/theme';
 import { Button } from './Button';
 import { LineStyle } from '../hooks/usePoseGuideUpload';
+import { useTheme } from '../theme/ThemeContext';
 
 const STYLE_OPTIONS: { value: LineStyle; label: string }[] = [
   { value: 'portrait_minimal', label: 'Style 1' },
@@ -38,6 +40,9 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
   onClearSelection,
   onUpload,
 }) => {
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
+
   return (
     <View style={styles.wrap}>
       {selectedImage ? (
@@ -53,7 +58,7 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
             </TouchableOpacity>
             {isUploading ? (
               <View style={styles.uploadOverlay}>
-                <ActivityIndicator size="large" color={dark.primary} />
+                <ActivityIndicator size="large" color={semantic.primary} />
                 <Text style={styles.uploadOverlayText}>Uploading image…</Text>
               </View>
             ) : null}
@@ -97,13 +102,11 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
             title="Generate Pose Guide"
             onPress={onUpload}
             loading={isUploading}
-            tone="dark"
             icon={<Ionicons name="sparkles" size={20} color="#fff" />}
           />
           <Button
             title="Choose Different Image"
             variant="outline"
-            tone="dark"
             onPress={onClearSelection}
             disabled={isUploading}
             style={styles.secondaryButton}
@@ -116,9 +119,9 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
           activeOpacity={0.85}
         >
           <View style={styles.iconCircle}>
-            <Ionicons name="image-outline" size={34} color={dark.accent} />
+            <Ionicons name="image-outline" size={34} color={semantic.accent} />
             <View style={styles.plusBadge}>
-              <Ionicons name="add" size={16} color={dark.accent} />
+              <Ionicons name="add" size={16} color={semantic.accent} />
             </View>
           </View>
           <Text style={styles.pickerTitle}>Upload Reference</Text>
@@ -129,141 +132,143 @@ export const UploadReferenceCard: React.FC<UploadReferenceCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginBottom: spacing.lg,
-  },
-  picker: {
-    minHeight: 270,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A2E',
-    borderStyle: 'dashed',
-    borderRadius: 28,
-    backgroundColor: '#07080A',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-  },
-  iconCircle: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#15171B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  plusBadge: {
-    position: 'absolute',
-    top: 20,
-    right: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerTitle: {
-    fontSize: fontSize.xl,
-    lineHeight: 26,
-    fontWeight: '600',
-    color: dark.text,
-  },
-  pickerSubtitle: {
-    fontSize: fontSize.sm,
-    lineHeight: 18,
-    marginTop: spacing.xs,
-    color: dark.textSecondary,
-    textAlign: 'center',
-  },
-  previewBlock: {
-    gap: spacing.md,
-  },
-  uploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.lg,
-  },
-  uploadOverlayText: {
-    marginTop: spacing.md,
-    color: dark.text,
-    fontSize: fontSize.md,
-  },
-  previewContainer: {
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    minHeight: 200,
-    backgroundColor: dark.surfaceMuted,
-    position: 'relative',
-  },
-  preview: {
-    width: '100%',
-    minHeight: 200,
-    resizeMode: 'contain',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: borderRadius.full,
-    padding: spacing.sm,
-  },
-  styleSelector: {
-    marginTop: spacing.sm,
-  },
-  styleSelectorLabel: {
-    fontSize: fontSize.sm,
-    color: dark.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  styleOptions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    flexWrap: 'wrap',
-  },
-  styleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: dark.surfaceMuted,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: dark.border,
-    gap: spacing.sm,
-  },
-  styleOptionSelected: {
-    borderColor: dark.primary,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-  },
-  styleOptionText: {
-    fontSize: fontSize.md,
-    color: dark.textSecondary,
-  },
-  styleOptionTextSelected: {
-    color: dark.text,
-    fontWeight: '600',
-  },
-  radioOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: dark.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: dark.primary,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: dark.primary,
-  },
-  secondaryButton: {
-    marginTop: spacing.xs,
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: spacing.lg,
+    },
+    picker: {
+      minHeight: 270,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: s.border,
+      borderStyle: 'dashed',
+      borderRadius: 28,
+      backgroundColor: s.surface,
+      paddingVertical: spacing.xl,
+      paddingHorizontal: spacing.lg,
+    },
+    iconCircle: {
+      width: 86,
+      height: 86,
+      borderRadius: 43,
+      backgroundColor: s.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    plusBadge: {
+      position: 'absolute',
+      top: 20,
+      right: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pickerTitle: {
+      fontSize: fontSize.xl,
+      lineHeight: 26,
+      fontWeight: '600',
+      color: s.text,
+    },
+    pickerSubtitle: {
+      fontSize: fontSize.sm,
+      lineHeight: 18,
+      marginTop: spacing.xs,
+      color: s.textSecondary,
+      textAlign: 'center',
+    },
+    previewBlock: {
+      gap: spacing.md,
+    },
+    uploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.lg,
+    },
+    uploadOverlayText: {
+      marginTop: spacing.md,
+      color: '#fff',
+      fontSize: fontSize.md,
+    },
+    previewContainer: {
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      minHeight: 200,
+      backgroundColor: s.surfaceMuted,
+      position: 'relative',
+    },
+    preview: {
+      width: '100%',
+      minHeight: 200,
+      resizeMode: 'contain',
+    },
+    closeButton: {
+      position: 'absolute',
+      top: spacing.md,
+      right: spacing.md,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: borderRadius.full,
+      padding: spacing.sm,
+    },
+    styleSelector: {
+      marginTop: spacing.sm,
+    },
+    styleSelectorLabel: {
+      fontSize: fontSize.sm,
+      color: s.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    styleOptions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      flexWrap: 'wrap',
+    },
+    styleOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: s.surfaceMuted,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: s.border,
+      gap: spacing.sm,
+    },
+    styleOptionSelected: {
+      borderColor: s.primary,
+      backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    },
+    styleOptionText: {
+      fontSize: fontSize.md,
+      color: s.textSecondary,
+    },
+    styleOptionTextSelected: {
+      color: s.text,
+      fontWeight: '600',
+    },
+    radioOuter: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 2,
+      borderColor: s.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioOuterSelected: {
+      borderColor: s.primary,
+    },
+    radioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: s.primary,
+    },
+    secondaryButton: {
+      marginTop: spacing.xs,
+    },
+  });
+}

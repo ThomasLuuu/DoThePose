@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { dark } from '../config/theme';
 import { useOnboardingStore } from '../store/onboardingStore';
+import { useTheme } from '../theme/ThemeContext';
 
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
@@ -24,20 +24,8 @@ import { HelpScreen } from '../screens/settings/HelpScreen';
 
 const Stack = createNativeStackNavigator();
 
-const navDarkTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: dark.primary,
-    background: dark.background,
-    card: dark.surface,
-    text: dark.text,
-    border: dark.border,
-    notification: dark.primary,
-  },
-};
-
 export const AppNavigator = () => {
+  const { semantic, isDark } = useTheme();
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
   const [onboardingHydrated, setOnboardingHydrated] = useState(() =>
     useOnboardingStore.persist.hasHydrated(),
@@ -53,10 +41,24 @@ export const AppNavigator = () => {
     return unsub;
   }, []);
 
+  const navTheme = useMemo(() => ({
+    ...DefaultTheme,
+    dark: isDark,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: semantic.primary,
+      background: semantic.background,
+      card: semantic.surface,
+      text: semantic.text,
+      border: semantic.border,
+      notification: semantic.primary,
+    },
+  }), [semantic, isDark]);
+
   if (!onboardingHydrated) {
     return (
-      <View style={styles.hydrate}>
-        <ActivityIndicator color={dark.accent} size="large" />
+      <View style={{ flex: 1, backgroundColor: semantic.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={semantic.accent} size="large" />
       </View>
     );
   }
@@ -64,14 +66,14 @@ export const AppNavigator = () => {
   const initialRouteName = hasCompletedOnboarding ? 'Main' : 'Onboarding';
 
   return (
-    <NavigationContainer theme={navDarkTheme}>
+    <NavigationContainer theme={navTheme}>
       <Stack.Navigator
         initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: true,
-          headerStyle: { backgroundColor: dark.background },
-          headerTintColor: dark.text,
-          headerTitleStyle: { color: dark.text },
+          headerStyle: { backgroundColor: semantic.background },
+          headerTintColor: semantic.text,
+          headerTitleStyle: { color: semantic.text },
           headerShadowVisible: false,
         }}
       >
@@ -180,12 +182,3 @@ export const AppNavigator = () => {
     </NavigationContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  hydrate: {
-    flex: 1,
-    backgroundColor: dark.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

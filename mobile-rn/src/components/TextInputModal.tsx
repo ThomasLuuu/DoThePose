@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { dark, spacing, borderRadius, fontSize } from '../config/theme';
+import { spacing, borderRadius, fontSize } from '../config/theme';
+import { SemanticColors } from '../config/theme';
+import { useTheme } from '../theme/ThemeContext';
 
 interface TextInputModalProps {
   visible: boolean;
@@ -34,6 +36,8 @@ export const TextInputModal: React.FC<TextInputModalProps> = ({
   onCancel,
   onSubmit,
 }) => {
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const [value, setValue] = useState(initialValue);
 
   useEffect(() => {
@@ -62,7 +66,7 @@ export const TextInputModal: React.FC<TextInputModalProps> = ({
             value={value}
             onChangeText={setValue}
             placeholder={placeholder}
-            placeholderTextColor={dark.textSecondary}
+            placeholderTextColor={semantic.textSecondary}
             style={styles.input}
             autoFocus
             maxLength={maxLength}
@@ -89,54 +93,56 @@ export const TextInputModal: React.FC<TextInputModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: dark.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: dark.text,
-    marginBottom: spacing.md,
-  },
-  input: {
-    backgroundColor: dark.surfaceMuted,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    color: dark.text,
-    fontSize: fontSize.md,
-    marginBottom: spacing.md,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
-  button: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  buttonText: {
-    fontSize: fontSize.md,
-    color: dark.textSecondary,
-    fontWeight: '600',
-  },
-  primary: {
-    color: dark.accent,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: s.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+    },
+    title: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: s.text,
+      marginBottom: spacing.md,
+    },
+    input: {
+      backgroundColor: s.surfaceMuted,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: s.text,
+      fontSize: fontSize.md,
+      marginBottom: spacing.md,
+    },
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: spacing.sm,
+    },
+    button: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    buttonText: {
+      fontSize: fontSize.md,
+      color: s.textSecondary,
+      fontWeight: '600',
+    },
+    primary: {
+      color: s.accent,
+    },
+    disabled: {
+      opacity: 0.4,
+    },
+  });
+}

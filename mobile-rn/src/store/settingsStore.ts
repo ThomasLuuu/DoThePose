@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface SettingsState {
   notificationsEnabled: boolean;
   setNotificationsEnabled: (value: boolean) => void;
+  appearance: 'system' | 'light' | 'dark';
+  setAppearance: (value: 'system' | 'light' | 'dark') => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -12,11 +14,16 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       notificationsEnabled: true,
       setNotificationsEnabled: (value) => set({ notificationsEnabled: value }),
+      appearance: 'system',
+      setAppearance: (value) => set({ appearance: value }),
     }),
     {
       name: 'app-settings',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ notificationsEnabled: state.notificationsEnabled }),
+      partialize: (state) => ({
+        notificationsEnabled: state.notificationsEnabled,
+        appearance: state.appearance,
+      }),
     },
   ),
 );

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { dark, spacing, borderRadius, fontSize } from '../../config/theme';
+import { spacing, borderRadius, fontSize } from '../../config/theme';
+import { SemanticColors } from '../../config/theme';
 import { listSavedPhotos, SavedPhoto } from '../../utils/savedPhotos';
+import { useTheme } from '../../theme/ThemeContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const COLS = 3;
@@ -24,6 +26,8 @@ const THUMB = (SCREEN_W - GAP * (COLS + 1)) / COLS;
 export const SavedGalleryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const [photos, setPhotos] = useState<SavedPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,21 +71,20 @@ export const SavedGalleryScreen: React.FC = () => {
         <Image source={{ uri: item.uri }} style={styles.thumbImage} resizeMode="cover" />
       </TouchableOpacity>
     ),
-    [openPhoto],
+    [openPhoto, styles],
   );
 
   const keyExtractor = useCallback((item: SavedPhoto) => item.id, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top > 0 ? 0 : spacing.sm }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           hitSlop={8}
         >
-          <Ionicons name="chevron-back" size={22} color={dark.text} />
+          <Ionicons name="chevron-back" size={22} color={semantic.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Gallery</Text>
         <View style={styles.backBtn} />
@@ -89,11 +92,11 @@ export const SavedGalleryScreen: React.FC = () => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={dark.accent} size="large" />
+          <ActivityIndicator color={semantic.accent} size="large" />
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="images-outline" size={56} color={dark.textSecondary} />
+          <Ionicons name="images-outline" size={56} color={semantic.textSecondary} />
           <Text style={styles.emptyTitle}>No saved photos yet</Text>
           <Text style={styles.emptySubtitle}>
             Photos you save from camera sessions will appear here.
@@ -112,7 +115,7 @@ export const SavedGalleryScreen: React.FC = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => load(true)}
-              tintColor={dark.accent}
+              tintColor={semantic.accent}
             />
           }
         />
@@ -121,67 +124,69 @@ export const SavedGalleryScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    color: dark.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
-  },
-  emptyTitle: {
-    color: dark.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: spacing.md,
-  },
-  emptySubtitle: {
-    color: dark.textSecondary,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  grid: {
-    paddingHorizontal: GAP,
-    paddingBottom: spacing.xl,
-  },
-  row: {
-    marginBottom: GAP,
-  },
-  thumb: {
-    width: THUMB,
-    height: THUMB,
-    marginHorizontal: GAP / 2,
-    backgroundColor: dark.surface,
-    borderRadius: borderRadius.sm,
-    overflow: 'hidden',
-  },
-  thumbImage: {
-    width: '100%',
-    height: '100%',
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: s.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      color: s.text,
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+      gap: spacing.sm,
+    },
+    emptyTitle: {
+      color: s.text,
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginTop: spacing.md,
+    },
+    emptySubtitle: {
+      color: s.textSecondary,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+    },
+    grid: {
+      paddingHorizontal: GAP,
+      paddingBottom: spacing.xl,
+    },
+    row: {
+      marginBottom: GAP,
+    },
+    thumb: {
+      width: THUMB,
+      height: THUMB,
+      marginHorizontal: GAP / 2,
+      backgroundColor: s.surface,
+      borderRadius: borderRadius.sm,
+      overflow: 'hidden',
+    },
+    thumbImage: {
+      width: '100%',
+      height: '100%',
+    },
+  });
+}

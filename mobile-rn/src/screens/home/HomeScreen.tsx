@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { dark, spacing, fontSize, borderRadius } from '../../config/theme';
+import { spacing, fontSize, borderRadius } from '../../config/theme';
+import { SemanticColors } from '../../config/theme';
 import { UploadReferenceCard } from '../../components/UploadReferenceCard';
 import { GroupTile, CreateGroupTile } from '../../components/GroupTile';
 import { TextInputModal } from '../../components/TextInputModal';
@@ -25,12 +26,15 @@ import { usePoseGuideUpload } from '../../hooks/usePoseGuideUpload';
 import { useSessionRecentsStore } from '../../store/sessionRecentsStore';
 import { usePendingUploadStore } from '../../store/pendingUploadStore';
 import { CREATED_GROUP_ID, CREATED_GROUP_NAME, MAX_GROUP_NAME_LENGTH } from '../../types/group';
+import { useTheme } from '../../theme/ThemeContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const RECENT_THUMB = (SCREEN_W - spacing.md * 2 - spacing.sm * 2) / 3;
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const {
     groups,
     unassignedCount,
@@ -161,14 +165,14 @@ export const HomeScreen: React.FC = () => {
                 resizeMode="cover"
               />
               <View style={styles.recentBadge}>
-                <Ionicons name="images-outline" size={12} color={dark.text} />
+                <Ionicons name="images-outline" size={12} color={semantic.text} />
               </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
     );
-  }, [recents, navigation, openPhotoDetail]);
+  }, [recents, navigation, openPhotoDetail, styles, semantic.text]);
 
   const groupTiles = useMemo(() => {
     const items: Array<
@@ -198,7 +202,6 @@ export const HomeScreen: React.FC = () => {
 
     items.push({ key: 'create', kind: 'create' });
 
-    // pair into rows of 2
     const rows: typeof items[] = [];
     for (let i = 0; i < items.length; i += 2) {
       rows.push(items.slice(i, i + 2));
@@ -216,8 +219,8 @@ export const HomeScreen: React.FC = () => {
           <RefreshControl
             refreshing={isLoadingGroups}
             onRefresh={handleRefresh}
-            tintColor={dark.primary}
-            colors={[dark.primary]}
+            tintColor={semantic.primary}
+            colors={[semantic.primary]}
           />
         }
       >
@@ -229,7 +232,7 @@ export const HomeScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Ionicons name="settings-outline" size={22} color={dark.text} />
+            <Ionicons name="settings-outline" size={22} color={semantic.text} />
           </TouchableOpacity>
         </View>
 
@@ -254,7 +257,7 @@ export const HomeScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel="Create new group"
           >
-            <Ionicons name="add" size={22} color={dark.accent} />
+            <Ionicons name="add" size={22} color={semantic.accent} />
           </TouchableOpacity>
         </View>
 
@@ -262,11 +265,10 @@ export const HomeScreen: React.FC = () => {
 
         {isLoadingGroups && groups.length === 0 ? (
           <View style={styles.center}>
-            <ActivityIndicator color={dark.primary} />
+            <ActivityIndicator color={semantic.primary} />
           </View>
         ) : showEmptyGroupsHint ? (
           <EmptyState
-            variant="dark"
             icon="folder-outline"
             title="No guides yet"
             subtitle="Upload a reference above to create your first pose guide — it'll land in Created."
@@ -289,7 +291,6 @@ export const HomeScreen: React.FC = () => {
                     />
                   ),
                 )}
-                {/* pad odd final row */}
                 {row.length === 1 ? <View style={styles.gridSpacer} /> : null}
               </View>
             ))}
@@ -310,112 +311,114 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  content: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  appTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: dark.text,
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionBlock: {
-    marginBottom: spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: dark.text,
-  },
-  sectionAction: {
-    fontSize: fontSize.sm,
-    color: dark.textSecondary,
-    fontWeight: '500',
-  },
-  recentsContent: {
-    gap: spacing.sm,
-  },
-  recentThumb: {
-    width: RECENT_THUMB,
-    height: RECENT_THUMB,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    backgroundColor: dark.surfaceMuted,
-  },
-  recentImage: {
-    width: '100%',
-    height: '100%',
-  },
-  recentBadge: {
-    position: 'absolute',
-    bottom: spacing.xs,
-    right: spacing.xs,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  groupsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  headerAction: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    color: dark.error,
-    fontSize: fontSize.sm,
-    marginBottom: spacing.sm,
-  },
-  center: {
-    paddingVertical: spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  grid: {
-    gap: spacing.md,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  gridSpacer: {
-    flex: 1,
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: s.background,
+    },
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    appTitle: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: s.text,
+    },
+    settingsButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionBlock: {
+      marginBottom: spacing.lg,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    sectionTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: s.text,
+    },
+    sectionAction: {
+      fontSize: fontSize.sm,
+      color: s.textSecondary,
+      fontWeight: '500',
+    },
+    recentsContent: {
+      gap: spacing.sm,
+    },
+    recentThumb: {
+      width: RECENT_THUMB,
+      height: RECENT_THUMB,
+      borderRadius: borderRadius.md,
+      overflow: 'hidden',
+      backgroundColor: s.surfaceMuted,
+    },
+    recentImage: {
+      width: '100%',
+      height: '100%',
+    },
+    recentBadge: {
+      position: 'absolute',
+      bottom: spacing.xs,
+      right: spacing.xs,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    groupsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.md,
+      marginBottom: spacing.md,
+    },
+    headerAction: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorText: {
+      color: s.error,
+      fontSize: fontSize.sm,
+      marginBottom: spacing.sm,
+    },
+    center: {
+      paddingVertical: spacing.xxl,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    grid: {
+      gap: spacing.md,
+    },
+    gridRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    gridSpacer: {
+      flex: 1,
+    },
+  });
+}

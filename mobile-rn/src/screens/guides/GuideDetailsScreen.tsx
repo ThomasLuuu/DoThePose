@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,15 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { dark, spacing, borderRadius, fontSize } from '../../config/theme';
+import { spacing, borderRadius, fontSize } from '../../config/theme';
+import { SemanticColors } from '../../config/theme';
 import { Guide } from '../../types/guide';
 import { getFullImageUrl } from '../../config/api';
 import { useGuidesStore } from '../../store/guidesStore';
 import { useGroupsStore } from '../../store/groupsStore';
 import { apiClient } from '../../api/client';
 import { AddToGroupModal } from '../../components/AddToGroupModal';
+import { useTheme } from '../../theme/ThemeContext';
 
 type RouteParams = {
   GuideDetails: { guide: Guide };
@@ -40,6 +42,9 @@ export const GuideDetailsScreen: React.FC = () => {
   const route = useRoute<RouteProp<RouteParams, 'GuideDetails'>>();
   const { guide: initialGuide } = route.params;
   const insets = useSafeAreaInsets();
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
+  const actionSt = useMemo(() => makeActionStyles(semantic), [semantic]);
 
   const [guide, setGuide] = useState<Guide>(initialGuide);
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
@@ -50,17 +55,13 @@ export const GuideDetailsScreen: React.FC = () => {
   const createGroupAction = useGroupsStore((s) => s.createGroup);
   const addGuidesToGroupAction = useGroupsStore((s) => s.addGuidesToGroup);
 
-  useEffect(() => {
-    loadGroups();
-  }, [loadGroups]);
+  useEffect(() => { loadGroups(); }, [loadGroups]);
 
   const guideImageUrl = getFullImageUrl(guide.guideImageUrl || guide.thumbnailUrl);
 
   const handleToggleFavorite = async () => {
     try {
-      const updated = await apiClient.updateGuide(guide.id, {
-        favorite: !guide.favorite,
-      });
+      const updated = await apiClient.updateGuide(guide.id, { favorite: !guide.favorite });
       setGuide(updated);
       updateGuideInList(updated);
     } catch {
@@ -68,9 +69,7 @@ export const GuideDetailsScreen: React.FC = () => {
     }
   };
 
-  const handleEdit = () => {
-    navigation.navigate('EditGuide', { guide });
-  };
+  const handleEdit = () => navigation.navigate('EditGuide', { guide });
 
   const handleDelete = () => {
     Alert.alert('Delete Guide', 'Are you sure you want to delete this guide?', [
@@ -80,19 +79,14 @@ export const GuideDetailsScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           const success = await deleteGuide(guide.id);
-          if (success) {
-            navigation.goBack();
-          } else {
-            Alert.alert('Error', 'Failed to delete guide');
-          }
+          if (success) { navigation.goBack(); }
+          else { Alert.alert('Error', 'Failed to delete guide'); }
         },
       },
     ]);
   };
 
-  const handleUseWithCamera = () => {
-    navigation.navigate('CameraOverlay', { guide });
-  };
+  const handleUseWithCamera = () => navigation.navigate('CameraOverlay', { guide });
 
   const handleAddToGroupPicked = async (groupId: string) => {
     setAddToGroupOpen(false);
@@ -119,15 +113,9 @@ export const GuideDetailsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.xs }]}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Back"
-          hitSlop={8}
-        >
-          <Ionicons name="chevron-back" size={22} color={dark.text} />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel="Back" hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={semantic.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Guide Details</Text>
         <TouchableOpacity
@@ -136,22 +124,17 @@ export const GuideDetailsScreen: React.FC = () => {
           hitSlop={8}
           onPress={() => Alert.alert('Settings', 'Guide settings will be available soon.')}
         >
-          <Ionicons name="settings-outline" size={22} color={dark.text} />
+          <Ionicons name="settings-outline" size={22} color={semantic.text} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Guide Image Card */}
         <View style={styles.imageCard}>
           {guideImageUrl ? (
-            <Image
-              source={{ uri: guideImageUrl }}
-              style={styles.guideImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: guideImageUrl }} style={styles.guideImage} resizeMode="cover" />
           ) : (
             <View style={[styles.guideImage, styles.imagePlaceholder]}>
-              <Ionicons name="image-outline" size={48} color={dark.textSecondary} />
+              <Ionicons name="image-outline" size={48} color={semantic.textSecondary} />
             </View>
           )}
           {activeLayers.length > 0 && (
@@ -165,43 +148,37 @@ export const GuideDetailsScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Title & Meta */}
         <View style={styles.metaSection}>
           <Text style={styles.guideName}>{guide.name || 'Untitled Guide'}</Text>
           <Text style={styles.guideMeta}>
-            {dateLabel}
-            {categoryLabel ? ` · ${categoryLabel}` : ''}
+            {dateLabel}{categoryLabel ? ` · ${categoryLabel}` : ''}
           </Text>
         </View>
 
-        {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Action buttons */}
         <View style={styles.actionsRow}>
           <ActionButton
-            icon={
-              <Ionicons
-                name={guide.favorite ? 'heart' : 'heart-outline'}
-                size={24}
-                color={dark.text}
-              />
-            }
+            styles={actionSt}
+            icon={<Ionicons name={guide.favorite ? 'heart' : 'heart-outline'} size={24} color={semantic.text} />}
             label="FAVORITE"
             onPress={handleToggleFavorite}
           />
           <ActionButton
-            icon={<Ionicons name="albums-outline" size={24} color={dark.text} />}
+            styles={actionSt}
+            icon={<Ionicons name="albums-outline" size={24} color={semantic.text} />}
             label="MOVE"
             onPress={() => setAddToGroupOpen(true)}
           />
           <ActionButton
-            icon={<Ionicons name="pencil-outline" size={24} color={dark.text} />}
+            styles={actionSt}
+            icon={<Ionicons name="pencil-outline" size={24} color={semantic.text} />}
             label="EDIT"
             onPress={handleEdit}
           />
           <ActionButton
-            icon={<Ionicons name="trash-outline" size={24} color={dark.error} />}
+            styles={actionSt}
+            icon={<Ionicons name="trash-outline" size={24} color={semantic.error} />}
             label="DELETE"
             labelStyle={styles.deleteLabel}
             onPress={handleDelete}
@@ -209,14 +186,9 @@ export const GuideDetailsScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={handleUseWithCamera}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="camera-outline" size={22} color={dark.background} />
+        <TouchableOpacity style={styles.ctaButton} onPress={handleUseWithCamera} activeOpacity={0.85}>
+          <Ionicons name="camera-outline" size={22} color={semantic.accentText} />
           <Text style={styles.ctaText}>Use This Guide</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -233,154 +205,112 @@ export const GuideDetailsScreen: React.FC = () => {
 };
 
 interface ActionButtonProps {
+  styles: ReturnType<typeof makeActionStyles>;
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
   labelStyle?: TextStyle;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onPress, labelStyle }) => (
-  <TouchableOpacity style={actionStyles.btn} onPress={onPress} activeOpacity={0.7}>
-    <View style={actionStyles.circle}>{icon}</View>
-    <Text style={[actionStyles.label, labelStyle]}>{label}</Text>
+const ActionButton: React.FC<ActionButtonProps> = ({ styles, icon, label, onPress, labelStyle }) => (
+  <TouchableOpacity style={styles.btn} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.circle}>{icon}</View>
+    <Text style={[styles.label, labelStyle]}>{label}</Text>
   </TouchableOpacity>
 );
 
-const actionStyles = StyleSheet.create({
-  btn: {
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  circle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    color: dark.text,
-    fontSize: fontSize.xs,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-});
+function makeActionStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    btn: { alignItems: 'center', gap: spacing.sm },
+    circle: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    label: { color: s.text, fontSize: fontSize.xs, fontWeight: '600', letterSpacing: 0.5 },
+  });
+}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    zIndex: 10,
-    elevation: 10,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: dark.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: spacing.xl,
-  },
-  imageCard: {
-    marginHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    height: IMAGE_HEIGHT,
-  },
-  guideImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePlaceholder: {
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeRow: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  badge: {
-    backgroundColor: dark.accent,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  badgeText: {
-    color: dark.background,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  metaSection: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    gap: spacing.xs,
-  },
-  guideName: {
-    color: dark.text,
-    fontSize: fontSize.xxxl,
-    fontWeight: '700',
-  },
-  guideMeta: {
-    color: dark.textSecondary,
-    fontSize: fontSize.sm,
-    marginTop: spacing.xs,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: dark.border,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  deleteLabel: {
-    color: dark.error,
-  },
-  bottomBar: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: dark.border,
-    backgroundColor: dark.background,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: dark.accent,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md + 2,
-    gap: spacing.sm,
-  },
-  ctaText: {
-    color: dark.background,
-    fontSize: fontSize.md,
-    fontWeight: '700',
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: s.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+      zIndex: 10,
+      elevation: 10,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { color: s.text, fontSize: fontSize.lg, fontWeight: '700' },
+    scrollContent: { paddingBottom: spacing.xl },
+    imageCard: {
+      marginHorizontal: spacing.md,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      height: IMAGE_HEIGHT,
+    },
+    guideImage: { width: '100%', height: '100%' },
+    imagePlaceholder: { backgroundColor: s.surface, alignItems: 'center', justifyContent: 'center' },
+    badgeRow: {
+      position: 'absolute',
+      top: spacing.md,
+      left: spacing.md,
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    badge: {
+      backgroundColor: s.accent,
+      borderRadius: borderRadius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    badgeText: { color: s.background, fontSize: fontSize.xs, fontWeight: '700', letterSpacing: 0.5 },
+    metaSection: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, gap: spacing.xs },
+    guideName: { color: s.text, fontSize: fontSize.xxxl, fontWeight: '700' },
+    guideMeta: { color: s.textSecondary, fontSize: fontSize.sm, marginTop: spacing.xs },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: s.border,
+      marginHorizontal: spacing.md,
+      marginTop: spacing.lg,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+    },
+    deleteLabel: { color: s.error },
+    bottomBar: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: s.border,
+      backgroundColor: s.background,
+    },
+    ctaButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: s.accent,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.md + 2,
+      gap: spacing.sm,
+    },
+    ctaText: { color: s.accentText, fontSize: fontSize.md, fontWeight: '700' },
+  });
+}

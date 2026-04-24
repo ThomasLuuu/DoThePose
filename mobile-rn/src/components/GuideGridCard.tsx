@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Guide } from '../types/guide';
 import { getFullImageUrl } from '../config/api';
-import { dark, spacing, borderRadius, fontSize } from '../config/theme';
+import { spacing, borderRadius, fontSize } from '../config/theme';
+import { SemanticColors } from '../config/theme';
+import { useTheme } from '../theme/ThemeContext';
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -48,6 +50,8 @@ export const GuideGridCard: React.FC<GuideGridCardProps> = React.memo(({
   onLongPress,
   onToggleFavorite,
 }) => {
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const thumbnailUrl = getFullImageUrl(guide.thumbnailUrl);
   const isReady = guide.status === 'completed';
   const isProcessing = guide.status === 'pending' || guide.status === 'processing';
@@ -68,23 +72,23 @@ export const GuideGridCard: React.FC<GuideGridCardProps> = React.memo(({
           <Image source={{ uri: thumbnailUrl }} style={styles.thumb} resizeMode="cover" />
         ) : (
           <View style={[styles.thumb, styles.placeholder]}>
-            <Ionicons name="image-outline" size={32} color={dark.textSecondary} />
+            <Ionicons name="image-outline" size={32} color={semantic.textSecondary} />
           </View>
         )}
         {isProcessing ? (
           <View style={styles.overlay}>
-            <ActivityIndicator color={dark.text} />
+            <ActivityIndicator color={semantic.text} />
           </View>
         ) : null}
         {isFailed ? (
           <View style={styles.overlay}>
-            <Ionicons name="alert-circle-outline" size={28} color={dark.error} />
+            <Ionicons name="alert-circle-outline" size={28} color={semantic.error} />
           </View>
         ) : null}
 
         {selectionMode ? (
           <View style={[styles.selectBadge, selected && styles.selectBadgeOn]}>
-            {selected ? <Ionicons name="checkmark" size={16} color={dark.background} /> : null}
+            {selected ? <Ionicons name="checkmark" size={16} color={semantic.accentText} /> : null}
           </View>
         ) : (
           <TouchableOpacity
@@ -96,7 +100,7 @@ export const GuideGridCard: React.FC<GuideGridCardProps> = React.memo(({
             <Ionicons
               name={guide.favorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={guide.favorite ? dark.accent : dark.text}
+              color={guide.favorite ? semantic.accent : semantic.text}
             />
           </TouchableOpacity>
         )}
@@ -117,6 +121,8 @@ interface NewGuideTileProps {
 }
 
 export const NewGuideTile: React.FC<NewGuideTileProps> = React.memo(({ width, onPress }) => {
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   return (
     <TouchableOpacity
       style={[{ width }, styles.card]}
@@ -125,7 +131,7 @@ export const NewGuideTile: React.FC<NewGuideTileProps> = React.memo(({ width, on
     >
       <View style={[styles.newTile, { width, height: width * 1.25 }]}>
         <View style={styles.newIconRing}>
-          <Ionicons name="add" size={28} color={dark.accent} />
+          <Ionicons name="add" size={28} color={semantic.accent} />
         </View>
         <Text style={styles.newLabel}>New Guide</Text>
       </View>
@@ -133,93 +139,95 @@ export const NewGuideTile: React.FC<NewGuideTileProps> = React.memo(({ width, on
   );
 });
 
-const styles = StyleSheet.create({
-  card: {
-    marginBottom: spacing.md,
-  },
-  thumbWrap: {
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    backgroundColor: dark.surface,
-    position: 'relative',
-  },
-  thumb: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: dark.surfaceMuted,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heart: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: dark.text,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectBadgeOn: {
-    backgroundColor: dark.accent,
-    borderColor: dark.accent,
-  },
-  meta: {
-    paddingTop: spacing.sm,
-  },
-  title: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: dark.text,
-  },
-  subtitle: {
-    fontSize: fontSize.xs,
-    color: dark.textSecondary,
-    marginTop: 2,
-  },
-  newTile: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: dark.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  newIconRing: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: dark.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  newLabel: {
-    fontSize: fontSize.sm,
-    color: dark.textSecondary,
-    fontWeight: '600',
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    card: {
+      marginBottom: spacing.md,
+    },
+    thumbWrap: {
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      backgroundColor: s.surface,
+      position: 'relative',
+    },
+    thumb: {
+      width: '100%',
+      height: '100%',
+    },
+    placeholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: s.surfaceMuted,
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heart: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    selectBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 2,
+      borderColor: s.text,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    selectBadgeOn: {
+      backgroundColor: s.accent,
+      borderColor: s.accent,
+    },
+    meta: {
+      paddingTop: spacing.sm,
+    },
+    title: {
+      fontSize: fontSize.md,
+      fontWeight: '700',
+      color: s.text,
+    },
+    subtitle: {
+      fontSize: fontSize.xs,
+      color: s.textSecondary,
+      marginTop: 2,
+    },
+    newTile: {
+      borderRadius: borderRadius.lg,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: s.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    newIconRing: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: s.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.sm,
+    },
+    newLabel: {
+      fontSize: fontSize.sm,
+      color: s.textSecondary,
+      fontWeight: '600',
+    },
+  });
+}

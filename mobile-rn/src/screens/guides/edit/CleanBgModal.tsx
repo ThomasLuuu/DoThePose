@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { dark, spacing, borderRadius, fontSize } from '../../../config/theme';
+import { spacing, borderRadius, fontSize } from '../../../config/theme';
+import { SemanticColors } from '../../../config/theme';
 import { apiClient } from '../../../api/client';
 import { Guide } from '../../../types/guide';
 import { containLayout, layoutToImage } from './geometry';
+import { useTheme } from '../../../theme/ThemeContext';
 
 type Point = { x: number; y: number };
 
@@ -36,6 +38,8 @@ export const CleanBgModal: React.FC<Props> = ({
   onDone,
   onGuideUpdated,
 }) => {
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const [layout, setLayout] = useState({ w: 1, h: 1 });
   const [imageSize, setImageSize] = useState({ w: 1, h: 1 });
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
@@ -51,55 +55,39 @@ export const CleanBgModal: React.FC<Props> = ({
   imageSizeRef.current = imageSize;
 
   useEffect(() => {
-    if (!visible) {
-      setUndoCount(0);
-      setRedoCount(0);
-    }
+    if (!visible) { setUndoCount(0); setRedoCount(0); }
   }, [visible]);
 
   useEffect(() => {
-    if (!imageUri) {
-      return;
-    }
+    if (!imageUri) { return; }
     Image.getSize(
       imageUri,
       (w, h) => setImageSize({ w: Math.max(1, w), h: Math.max(1, h) }),
-      () => setImageSize({ w: 1000, h: 1000 })
+      () => setImageSize({ w: 1000, h: 1000 }),
     );
   }, [imageUri]);
 
   const geom = useMemo(
     () => containLayout(imageSize.w, imageSize.h, layout.w, layout.h),
-    [imageSize.w, imageSize.h, layout.w, layout.h]
+    [imageSize.w, imageSize.h, layout.w, layout.h],
   );
 
   const commitStroke = async (stroke: Point[]) => {
-    if (stroke.length < 2) {
-      return;
-    }
+    if (stroke.length < 2) { return; }
     const L = layoutRef.current;
     const I = imageSizeRef.current;
     const mapped = stroke
       .map((p) => {
         const pt = layoutToImage(p.x, p.y, I.w, I.h, L.w, L.h);
-        return {
-          x: Math.max(0, Math.min(I.w, pt.ix)),
-          y: Math.max(0, Math.min(I.h, pt.iy)),
-        };
+        return { x: Math.max(0, Math.min(I.w, pt.ix)), y: Math.max(0, Math.min(I.h, pt.iy)) };
       })
       .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-
-    if (mapped.length === 0) {
-      return;
-    }
+    if (mapped.length === 0) { return; }
 
     setPendingStroke(stroke);
     setBusy(true);
     try {
-      const res = await apiClient.eraseGuideByStrokes(guideId, {
-        strokes: [mapped],
-        brushSize: 30,
-      });
+      const res = await apiClient.eraseGuideByStrokes(guideId, { strokes: [mapped], brushSize: 30 });
       onGuideUpdated(res.guide);
       setUndoCount(res.undoCount);
       setRedoCount(res.redoCount);
@@ -112,7 +100,7 @@ export const CleanBgModal: React.FC<Props> = ({
   };
 
   const onUndo = async () => {
-    if (busy || undoCount === 0) return;
+    if (busy || undoCount === 0) { return; }
     setBusy(true);
     try {
       const res = await apiClient.undoEraseGuide(guideId);
@@ -127,7 +115,7 @@ export const CleanBgModal: React.FC<Props> = ({
   };
 
   const onRedo = async () => {
-    if (busy || redoCount === 0) return;
+    if (busy || redoCount === 0) { return; }
     setBusy(true);
     try {
       const res = await apiClient.redoEraseGuide(guideId);
@@ -143,14 +131,12 @@ export const CleanBgModal: React.FC<Props> = ({
 
   const onLayoutCanvas = (e: LayoutChangeEvent): void => {
     const { width, height } = e.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setLayout({ w: width, h: height });
-    }
+    if (width > 0 && height > 0) { setLayout({ w: width, h: height }); }
   };
 
   const overlayStrokes: Point[][] = [];
-  if (pendingStroke) overlayStrokes.push(pendingStroke);
-  if (currentStroke.length > 0) overlayStrokes.push(currentStroke);
+  if (pendingStroke) { overlayStrokes.push(pendingStroke); }
+  if (currentStroke.length > 0) { overlayStrokes.push(currentStroke); }
 
   const undoDisabled = busy || undoCount === 0;
   const redoDisabled = busy || redoCount === 0;
@@ -165,7 +151,7 @@ export const CleanBgModal: React.FC<Props> = ({
           <Text style={styles.tbTitle}>Clean background</Text>
           <TouchableOpacity onPress={onDone} style={styles.tbBtn} disabled={busy}>
             {busy
-              ? <ActivityIndicator color={dark.accent} size="small" />
+              ? <ActivityIndicator color={semantic.accent} size="small" />
               : <Text style={[styles.tbBtnText, styles.tbDoneText]}>Done</Text>
             }
           </TouchableOpacity>
@@ -189,46 +175,25 @@ export const CleanBgModal: React.FC<Props> = ({
             }}
             onResponderRelease={() => {
               setCurrentStroke((s) => {
-                if (s.length > 1) {
-                  void commitStroke(s);
-                }
+                if (s.length > 1) { void commitStroke(s); }
                 return [];
               });
             }}
             onResponderTerminate={() => {
               setCurrentStroke((s) => {
-                if (s.length > 1) {
-                  void commitStroke(s);
-                }
+                if (s.length > 1) { void commitStroke(s); }
                 return [];
               });
             }}
           />
           {overlayStrokes.map((stroke, si) =>
             stroke.map((p, pi) => (
-              <View
-                key={`${si}-${pi}`}
-                style={[
-                  styles.strokeDot,
-                  {
-                    left: p.x - 14,
-                    top: p.y - 14,
-                  },
-                ]}
-              />
-            ))
+              <View key={`${si}-${pi}`} style={[styles.strokeDot, { left: p.x - 14, top: p.y - 14 }]} />
+            )),
           )}
           <View
             pointerEvents="none"
-            style={[
-              styles.imageBounds,
-              {
-                left: geom.ox,
-                top: geom.oy,
-                width: geom.dw,
-                height: geom.dh,
-              },
-            ]}
+            style={[styles.imageBounds, { left: geom.ox, top: geom.oy, width: geom.dw, height: geom.dh }]}
           />
         </View>
 
@@ -239,7 +204,7 @@ export const CleanBgModal: React.FC<Props> = ({
             style={[styles.iconBtn, undoDisabled && styles.btnDisabled]}
             accessibilityLabel="Undo"
           >
-            <Ionicons name="arrow-undo" size={24} color={dark.text} />
+            <Ionicons name="arrow-undo" size={24} color={semantic.text} />
             <Text style={styles.iconLabel}>Undo</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -248,7 +213,7 @@ export const CleanBgModal: React.FC<Props> = ({
             style={[styles.iconBtn, redoDisabled && styles.btnDisabled]}
             accessibilityLabel="Redo"
           >
-            <Ionicons name="arrow-redo" size={24} color={dark.text} />
+            <Ionicons name="arrow-redo" size={24} color={semantic.text} />
             <Text style={styles.iconLabel}>Redo</Text>
           </TouchableOpacity>
         </View>
@@ -257,80 +222,48 @@ export const CleanBgModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  tbBtn: {
-    padding: spacing.sm,
-  },
-  tbBtnText: {
-    color: dark.textSecondary,
-    fontSize: fontSize.md,
-  },
-  tbDoneText: {
-    color: dark.accent,
-    fontWeight: '600',
-  },
-  btnDisabled: {
-    opacity: 0.35,
-  },
-  tbTitle: {
-    color: dark.text,
-    fontWeight: '600',
-    fontSize: fontSize.md,
-  },
-  hint: {
-    color: dark.textSecondary,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  canvasShell: {
-    flex: 1,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    backgroundColor: dark.surface,
-  },
-  strokeDot: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 60, 60, 0.5)',
-  },
-  imageBounds: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: dark.border,
-  },
-  iconBtn: {
-    alignItems: 'center',
-    padding: spacing.sm,
-  },
-  iconLabel: {
-    color: dark.textSecondary,
-    fontSize: fontSize.xs,
-    marginTop: 4,
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: s.background },
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    tbBtn: { padding: spacing.sm },
+    tbBtnText: { color: s.textSecondary, fontSize: fontSize.md },
+    tbDoneText: { color: s.accent, fontWeight: '600' },
+    btnDisabled: { opacity: 0.35 },
+    tbTitle: { color: s.text, fontWeight: '600', fontSize: fontSize.md },
+    hint: { color: s.textSecondary, fontSize: fontSize.sm, textAlign: 'center', marginBottom: spacing.sm, paddingHorizontal: spacing.lg },
+    canvasShell: {
+      flex: 1,
+      marginHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      backgroundColor: s.surface,
+    },
+    strokeDot: {
+      position: 'absolute',
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(255, 60, 60, 0.5)',
+    },
+    imageBounds: { position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+    bottomBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: s.border,
+    },
+    iconBtn: { alignItems: 'center', padding: spacing.sm },
+    iconLabel: { color: s.textSecondary, fontSize: fontSize.xs, marginTop: 4 },
+  });
+}

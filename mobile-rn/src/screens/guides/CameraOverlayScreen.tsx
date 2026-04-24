@@ -18,12 +18,13 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { dark, spacing, borderRadius, fontSize } from '../../config/theme';
+import { spacing, borderRadius, fontSize } from '../../config/theme';
 import { Guide } from '../../types/guide';
 import { getFullImageUrl } from '../../config/api';
 import { SessionCapture } from './SessionReviewScreen';
 import { sessionCallbackStore } from './sessionCallbackStore';
 import { useSessionRecentsStore } from '../../store/sessionRecentsStore';
+import { useTheme } from '../../theme/ThemeContext';
 
 type RouteParams = {
   CameraOverlay: { guide: Guide };
@@ -45,6 +46,9 @@ export const CameraOverlayScreen: React.FC = () => {
   const { guide } = route.params;
   const insets = useSafeAreaInsets();
   const addCapture = useSessionRecentsStore((state) => state.addCapture);
+  const { semantic } = useTheme();
+  // Camera viewfinder always uses dark tokens — yellow on black is intentional
+  const ACCENT = '#FFD60A';
 
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -69,7 +73,6 @@ export const CameraOverlayScreen: React.FC = () => {
     ? sessionCaptures[sessionCaptures.length - 1].uri
     : null;
 
-  // ── Reanimated shared values for guide transform ───────────────────────────
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
@@ -80,10 +83,7 @@ export const CameraOverlayScreen: React.FC = () => {
   const savedScale = useSharedValue(1);
   const mirrorScale = useSharedValue(1);
 
-  // Keep mirror shared value in sync with React state
-  useEffect(() => {
-    mirrorScale.value = mirrorGuide ? -1 : 1;
-  }, [mirrorGuide]);
+  useEffect(() => { mirrorScale.value = mirrorGuide ? -1 : 1; }, [mirrorGuide]);
 
   const animatedGuideStyle = useAnimatedStyle(() => ({
     transform: [
@@ -91,18 +91,13 @@ export const CameraOverlayScreen: React.FC = () => {
       { translateY: translateY.value },
       { rotate: `${rotation.value}rad` },
       { scale: scale.value },
-      // Mirror applied last so it doesn't flip the rotation direction
       { scaleX: mirrorScale.value },
     ],
   }));
 
-  // ── isAdjustActive shared value so gesture .enabled() runs on UI thread ───
   const isAdjustActive = useSharedValue(activeTool === 'adjust');
-  useEffect(() => {
-    isAdjustActive.value = activeTool === 'adjust';
-  }, [activeTool]);
+  useEffect(() => { isAdjustActive.value = activeTool === 'adjust'; }, [activeTool]);
 
-  // ── Pan gesture ────────────────────────────────────────────────────────────
   const panGesture = Gesture.Pan()
     .minDistance(0)
     .onBegin(() => {
@@ -118,12 +113,8 @@ export const CameraOverlayScreen: React.FC = () => {
     })
     .enabled(activeTool === 'adjust');
 
-  // ── Rotation gesture (two-finger twist) ───────────────────────────────────
   const rotationGesture = Gesture.Rotation()
-    .onBegin(() => {
-      'worklet';
-      savedRotation.value = rotation.value;
-    })
+    .onBegin(() => { 'worklet'; savedRotation.value = rotation.value; })
     .onUpdate((e) => {
       'worklet';
       if (!isAdjustActive.value) { return; }
@@ -131,34 +122,25 @@ export const CameraOverlayScreen: React.FC = () => {
     })
     .enabled(activeTool === 'adjust');
 
-  // ── Pinch gesture (two-finger spread/squeeze to zoom) ────────────────────
   const pinchGesture = Gesture.Pinch()
-    .onBegin(() => {
-      'worklet';
-      savedScale.value = scale.value;
-    })
+    .onBegin(() => { 'worklet'; savedScale.value = scale.value; })
     .onUpdate((e) => {
       'worklet';
       if (!isAdjustActive.value) { return; }
-      // Clamp between 0.2× and 4× so it doesn't get lost
       const next = savedScale.value * e.scale;
       scale.value = Math.min(Math.max(next, 0.2), 4);
     })
     .enabled(activeTool === 'adjust');
 
-  // All three gestures active simultaneously (pan + rotate + pinch)
   const composed = Gesture.Simultaneous(panGesture, rotationGesture, pinchGesture);
 
-  // ── Camera ────────────────────────────────────────────────────────────────
   const cameraRef = useRef<CameraView>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const guideImageUrl = `${getFullImageUrl(guide.guideImageUrl)}?cb=${encodeURIComponent(String(guide.updatedAt ?? ''))}`;
 
   useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
+    if (!permission?.granted) { requestPermission(); }
   }, []);
 
   useEffect(() => {
@@ -176,19 +158,9 @@ export const CameraOverlayScreen: React.FC = () => {
     setActiveTool('timer');
   };
 
-  const handleFlip = () => {
-    setMirrorGuide(prev => !prev);
-    setActiveTool('flip');
-  };
-
-  const handleLineColor = () => {
-    setLineColor(prev => (prev === 'dark' ? 'light' : 'dark'));
-    setActiveTool('linecolor');
-  };
-
-  const handleAdjust = () => {
-    setActiveTool('adjust');
-  };
+  const handleFlip = () => { setMirrorGuide(prev => !prev); setActiveTool('flip'); };
+  const handleLineColor = () => { setLineColor(prev => (prev === 'dark' ? 'light' : 'dark')); setActiveTool('linecolor'); };
+  const handleAdjust = () => { setActiveTool('adjust'); };
 
   const doCapture = useCallback(async () => {
     if (!cameraRef.current) { return; }
@@ -204,15 +176,12 @@ export const CameraOverlayScreen: React.FC = () => {
         addCapture(capture);
       }
     } catch {
-      // capture failed silently — user can retry
+      // capture failed silently
     }
   }, []);
 
   const onShutter = useCallback(() => {
-    if (timerSec === 0) {
-      doCapture();
-      return;
-    }
+    if (timerSec === 0) { doCapture(); return; }
     setCountdown(timerSec);
     let remaining = timerSec;
     countdownRef.current = setInterval(() => {
@@ -228,85 +197,45 @@ export const CameraOverlayScreen: React.FC = () => {
     }, 1000);
   }, [timerSec, doCapture]);
 
-  const flipCamera = () => {
-    setFacing(prev => (prev === 'back' ? 'front' : 'back'));
-  };
+  const flipCamera = () => { setFacing(prev => (prev === 'back' ? 'front' : 'back')); };
 
-  const canUseUltraWide = Platform.OS === 'ios'
-    && facing === 'back'
-    && availableLenses.includes('builtInUltraWideCamera');
-
-  const zoomOptions: ZoomPreset[] = canUseUltraWide
-    ? ['0.5x', '1x', '2x', '3x']
-    : ['1x', '2x', '3x'];
+  const canUseUltraWide = Platform.OS === 'ios' && facing === 'back' && availableLenses.includes('builtInUltraWideCamera');
+  const zoomOptions: ZoomPreset[] = canUseUltraWide ? ['0.5x', '1x', '2x', '3x'] : ['1x', '2x', '3x'];
 
   const applyZoomPreset = useCallback((preset: ZoomPreset) => {
     setZoomPreset(preset);
-
-    // iPhone-like lens switching for back camera on iOS.
     if (Platform.OS === 'ios' && facing === 'back') {
-      if (preset === '0.5x' && availableLenses.includes('builtInUltraWideCamera')) {
-        setSelectedLens('builtInUltraWideCamera');
-        setCameraZoom(0);
-        return;
-      }
-      if (preset === '1x' && availableLenses.includes('builtInWideAngleCamera')) {
-        setSelectedLens('builtInWideAngleCamera');
-        setCameraZoom(0);
-        return;
-      }
-      if (preset === '2x' && availableLenses.includes('builtInTelephotoCamera')) {
-        setSelectedLens('builtInTelephotoCamera');
-        setCameraZoom(0);
-        return;
-      }
-      if (availableLenses.includes('builtInWideAngleCamera')) {
-        setSelectedLens('builtInWideAngleCamera');
-      }
+      if (preset === '0.5x' && availableLenses.includes('builtInUltraWideCamera')) { setSelectedLens('builtInUltraWideCamera'); setCameraZoom(0); return; }
+      if (preset === '1x' && availableLenses.includes('builtInWideAngleCamera')) { setSelectedLens('builtInWideAngleCamera'); setCameraZoom(0); return; }
+      if (preset === '2x' && availableLenses.includes('builtInTelephotoCamera')) { setSelectedLens('builtInTelephotoCamera'); setCameraZoom(0); return; }
+      if (availableLenses.includes('builtInWideAngleCamera')) { setSelectedLens('builtInWideAngleCamera'); }
     }
-
-    // Fallback digital zoom for unsupported lens levels / non-iOS.
-    if (preset === '0.5x' || preset === '1x') {
-      setCameraZoom(0);
-    } else if (preset === '2x') {
-      setCameraZoom(0.3);
-    } else {
-      setCameraZoom(0.55);
-    }
+    if (preset === '0.5x' || preset === '1x') { setCameraZoom(0); }
+    else if (preset === '2x') { setCameraZoom(0.3); }
+    else { setCameraZoom(0.55); }
   }, [availableLenses, facing]);
 
   useEffect(() => {
-    // Keep default at 1x on iOS by preferring wide-angle lens.
     if (Platform.OS !== 'ios') { return; }
-    if (facing !== 'back') {
-      setSelectedLens(undefined);
-      return;
-    }
-    if (availableLenses.includes('builtInWideAngleCamera')) {
-      setSelectedLens('builtInWideAngleCamera');
-    } else if (availableLenses.length > 0) {
-      setSelectedLens(availableLenses[0]);
-    }
+    if (facing !== 'back') { setSelectedLens(undefined); return; }
+    if (availableLenses.includes('builtInWideAngleCamera')) { setSelectedLens('builtInWideAngleCamera'); }
+    else if (availableLenses.length > 0) { setSelectedLens(availableLenses[0]); }
   }, [availableLenses, facing]);
 
   useEffect(() => {
-    if (zoomPreset === '0.5x' && !canUseUltraWide) {
-      applyZoomPreset('1x');
-    }
+    if (zoomPreset === '0.5x' && !canUseUltraWide) { applyZoomPreset('1x'); }
   }, [zoomPreset, canUseUltraWide, applyZoomPreset]);
 
-  if (!permission) {
-    return <View style={styles.container} />;
-  }
+  if (!permission) { return <View style={styles.container} />; }
 
   if (!permission.granted) {
     return (
       <View style={styles.container}>
         <SafeAreaView style={styles.permissionWrap}>
-          <Ionicons name="camera-outline" size={56} color={dark.textSecondary} />
+          <Ionicons name="camera-outline" size={56} color="rgba(255,255,255,0.5)" />
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionSub}>Allow camera access to use pose guide overlay.</Text>
-          <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
+          <TouchableOpacity style={[styles.permissionBtn, { backgroundColor: ACCENT }]} onPress={requestPermission}>
             <Text style={styles.permissionBtnText}>Allow Camera</Text>
           </TouchableOpacity>
         </SafeAreaView>
@@ -316,22 +245,17 @@ export const CameraOverlayScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Live camera */}
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing={facing}
         zoom={cameraZoom}
         selectedLens={Platform.OS === 'ios' ? selectedLens : undefined}
-        onAvailableLensesChanged={(event) => {
-          setAvailableLenses(event.lenses ?? []);
-        }}
+        onAvailableLensesChanged={(event) => { setAvailableLenses(event.lenses ?? []); }}
       />
 
-      {/* Rule-of-thirds grid */}
       {showGrid && <GridOverlay />}
 
-      {/* Guide pose overlay — pan + rotate with two fingers */}
       {showGuide && (
         <GestureDetector gesture={composed}>
           <Animated.View style={[styles.guideWrapper, animatedGuideStyle]}>
@@ -344,36 +268,27 @@ export const CameraOverlayScreen: React.FC = () => {
         </GestureDetector>
       )}
 
-      {/* Countdown display */}
       {countdown !== null && (
         <View style={styles.countdownWrap} pointerEvents="none">
-          <Text style={styles.countdownText}>{countdown}</Text>
+          <Text style={[styles.countdownText, { color: ACCENT }]}>{countdown}</Text>
         </View>
       )}
 
-      {/* ── Top bar ── */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.xs }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.iconBtn} onPress={() => setShowGrid(g => !g)}>
-          <Ionicons name="grid-outline" size={22} color={showGrid ? dark.accent : '#fff'} />
+          <Ionicons name="grid-outline" size={22} color={showGrid ? ACCENT : '#fff'} />
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.iconBtn}>
           <Ionicons name="ellipsis-vertical" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Opacity ruler ── */}
       <View style={styles.opacityRow}>
         <TouchableOpacity onPress={() => { setShowGuide(false); setGuideOpacity(0); }}>
-          <Ionicons
-            name="eye-off-outline"
-            size={22}
-            color={showGuide ? 'rgba(255,255,255,0.5)' : dark.accent}
-          />
+          <Ionicons name="eye-off-outline" size={22} color={showGuide ? 'rgba(255,255,255,0.5)' : ACCENT} />
         </TouchableOpacity>
         <Slider
           style={styles.opacitySlider}
@@ -381,97 +296,54 @@ export const CameraOverlayScreen: React.FC = () => {
           maximumValue={1}
           step={0.01}
           value={guideOpacity}
-          onValueChange={(v) => {
-            setGuideOpacity(v);
-            setShowGuide(v > 0);
-          }}
-          minimumTrackTintColor={dark.accent}
+          onValueChange={(v) => { setGuideOpacity(v); setShowGuide(v > 0); }}
+          minimumTrackTintColor={ACCENT}
           maximumTrackTintColor="rgba(255,255,255,0.25)"
-          thumbTintColor={dark.accent}
+          thumbTintColor={ACCENT}
         />
         <TouchableOpacity onPress={() => { setShowGuide(true); setGuideOpacity(1); }}>
-          <Ionicons
-            name="eye-outline"
-            size={22}
-            color={guideOpacity >= 0.99 ? dark.accent : 'rgba(255,255,255,0.5)'}
-          />
+          <Ionicons name="eye-outline" size={22} color={guideOpacity >= 0.99 ? ACCENT : 'rgba(255,255,255,0.5)'} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Bottom panel ── */}
       <SafeAreaView edges={['bottom']} style={styles.bottomPanel}>
-        {/* Tool row: Timer | Adjust | Flip */}
         <View style={styles.toolRow}>
-          {/* Timer */}
           <TouchableOpacity style={styles.toolBtn} onPress={cycleTimer}>
-            <Ionicons
-              name="timer-outline"
-              size={22}
-              color={activeTool === 'timer' && timerSec > 0 ? dark.accent : '#fff'}
-            />
-            <Text style={[styles.toolLabel, activeTool === 'timer' && timerSec > 0 && styles.toolLabelActive]}>
+            <Ionicons name="timer-outline" size={22} color={activeTool === 'timer' && timerSec > 0 ? ACCENT : '#fff'} />
+            <Text style={[styles.toolLabel, activeTool === 'timer' && timerSec > 0 && { color: ACCENT }]}>
               {timerSec === 0 ? 'Timer' : `${timerSec}S`}
             </Text>
           </TouchableOpacity>
-
-          {/* Adjust */}
           <TouchableOpacity style={styles.toolBtn} onPress={handleAdjust}>
-            <Ionicons
-              name="move-outline"
-              size={22}
-              color={activeTool === 'adjust' ? dark.accent : '#fff'}
-            />
-            <Text style={[styles.toolLabel, activeTool === 'adjust' && styles.toolLabelActive]}>
-              Adjust
-            </Text>
+            <Ionicons name="move-outline" size={22} color={activeTool === 'adjust' ? ACCENT : '#fff'} />
+            <Text style={[styles.toolLabel, activeTool === 'adjust' && { color: ACCENT }]}>Adjust</Text>
           </TouchableOpacity>
-
-          {/* Flip guide */}
           <TouchableOpacity style={styles.toolBtn} onPress={handleFlip}>
-            <Ionicons
-              name="swap-horizontal-outline"
-              size={22}
-              color={mirrorGuide ? dark.accent : '#fff'}
-            />
-            <Text style={[styles.toolLabel, mirrorGuide && styles.toolLabelActive]}>
-              Flip
-            </Text>
+            <Ionicons name="swap-horizontal-outline" size={22} color={mirrorGuide ? ACCENT : '#fff'} />
+            <Text style={[styles.toolLabel, mirrorGuide && { color: ACCENT }]}>Flip</Text>
           </TouchableOpacity>
-
-          {/* Line color toggle: Dark / Light */}
           <TouchableOpacity style={styles.toolBtn} onPress={handleLineColor}>
-            <Ionicons
-              name={lineColor === 'light' ? 'sunny-outline' : 'moon-outline'}
-              size={22}
-              color={activeTool === 'linecolor' ? dark.accent : '#fff'}
-            />
-            <Text style={[styles.toolLabel, activeTool === 'linecolor' && styles.toolLabelActive]}>
+            <Ionicons name={lineColor === 'light' ? 'sunny-outline' : 'moon-outline'} size={22} color={activeTool === 'linecolor' ? ACCENT : '#fff'} />
+            <Text style={[styles.toolLabel, activeTool === 'linecolor' && { color: ACCENT }]}>
               {lineColor === 'light' ? 'Light' : 'Dark'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Action row: thumbnail | shutter | camera-switch */}
         <View style={styles.actionRow}>
-          {/* Last photo thumbnail — opens session review */}
           <TouchableOpacity
             style={styles.thumbnailBtn}
             onPress={() => {
               if (sessionCaptures.length === 0) { return; }
-              sessionCallbackStore.set((updated: SessionCapture[]) => {
-                setSessionCaptures(updated);
-              });
-              navigation.navigate('SessionReview', {
-                captures: sessionCaptures,
-                poseName: guide.name ?? 'Pose',
-              });
+              sessionCallbackStore.set((updated: SessionCapture[]) => { setSessionCaptures(updated); });
+              navigation.navigate('SessionReview', { captures: sessionCaptures, poseName: guide.name ?? 'Pose' });
             }}
           >
             {lastPhotoUri ? (
               <>
                 <Image source={{ uri: lastPhotoUri }} style={styles.thumbnail} resizeMode="cover" />
                 {sessionCaptures.length > 1 && (
-                  <View style={styles.captureCountBadge}>
+                  <View style={[styles.captureCountBadge, { backgroundColor: ACCENT }]}>
                     <Text style={styles.captureCountText}>{sessionCaptures.length}</Text>
                   </View>
                 )}
@@ -483,23 +355,20 @@ export const CameraOverlayScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Shutter */}
           <TouchableOpacity
             style={styles.shutterOuter}
             onPress={countdown === null ? onShutter : undefined}
             activeOpacity={0.8}
           >
-            <View style={styles.shutterRing} />
-            <View style={styles.shutterInner} />
+            <View style={[styles.shutterRing, { borderColor: ACCENT }]} />
+            <View style={[styles.shutterInner, { backgroundColor: ACCENT }]} />
           </TouchableOpacity>
 
-          {/* Camera facing toggle */}
           <TouchableOpacity style={styles.cameraFlipBtn} onPress={flipCamera}>
             <Ionicons name="camera-reverse-outline" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* iPhone-style zoom controls */}
         <View style={styles.zoomRow}>
           <View style={styles.zoomCapsule}>
             {zoomOptions.map((option) => {
@@ -520,61 +389,27 @@ export const CameraOverlayScreen: React.FC = () => {
           </View>
         </View>
       </SafeAreaView>
-
     </View>
   );
 };
 
-// ── Rule-of-thirds grid ────────────────────────────────────────────────────────
 const GridOverlay: React.FC = () => (
   <View style={StyleSheet.absoluteFill} pointerEvents="none">
     {[1, 2].map(i => (
-      <View
-        key={`h${i}`}
-        style={[
-          styles.gridLine,
-          { top: (SCREEN_H / 3) * i, left: 0, right: 0, height: StyleSheet.hairlineWidth },
-        ]}
-      />
+      <View key={`h${i}`} style={[styles.gridLine, { top: (SCREEN_H / 3) * i, left: 0, right: 0, height: StyleSheet.hairlineWidth }]} />
     ))}
     {[1, 2].map(i => (
-      <View
-        key={`v${i}`}
-        style={[
-          styles.gridLine,
-          { left: (SCREEN_W / 3) * i, top: 0, bottom: 0, width: StyleSheet.hairlineWidth },
-        ]}
-      />
+      <View key={`v${i}`} style={[styles.gridLine, { left: (SCREEN_W / 3) * i, top: 0, bottom: 0, width: StyleSheet.hairlineWidth }]} />
     ))}
   </View>
 );
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  guideWrapper: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  guideOverlay: {
-    width: SCREEN_W,
-    height: SCREEN_H,
-  },
-  countdownWrap: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  countdownText: {
-    fontSize: 120,
-    fontWeight: '700',
-    color: dark.accent,
-    opacity: 0.9,
-  },
-
-  // Top bar
+  container: { flex: 1, backgroundColor: '#000' },
+  guideWrapper: { ...StyleSheet.absoluteFillObject },
+  guideOverlay: { width: SCREEN_W, height: SCREEN_H },
+  countdownWrap: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  countdownText: { fontSize: 120, fontWeight: '700', opacity: 0.9 },
   topBar: {
     position: 'absolute',
     top: 0,
@@ -595,8 +430,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Opacity ruler
   opacityRow: {
     position: 'absolute',
     left: spacing.lg,
@@ -606,13 +439,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  opacitySlider: {
-    flex: 1,
-    height: 40,
-    marginHorizontal: spacing.sm,
-  },
-
-  // Bottom panel
+  opacitySlider: { flex: 1, height: 40, marginHorizontal: spacing.sm },
   bottomPanel: {
     position: 'absolute',
     bottom: 0,
@@ -629,10 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  toolBtn: {
-    alignItems: 'center',
-    minWidth: 64,
-  },
+  toolBtn: { alignItems: 'center', minWidth: 64 },
   toolLabel: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: fontSize.xs,
@@ -640,10 +464,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  toolLabelActive: {
-    color: dark.accent,
-  },
-
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -651,10 +471,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.sm,
   },
-  zoomRow: {
-    alignItems: 'center',
-    paddingBottom: spacing.sm,
-  },
+  zoomRow: { alignItems: 'center', paddingBottom: spacing.sm },
   zoomCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,29 +490,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xs,
   },
-  zoomChipActive: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-  },
-  zoomChipText: {
-    color: '#fff',
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-  },
-  zoomChipTextActive: {
-    color: '#000',
-  },
-
-  // Thumbnail
-  thumbnailBtn: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: borderRadius.sm,
-    overflow: 'hidden',
-  },
-  thumbnail: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-  },
+  zoomChipActive: { backgroundColor: 'rgba(255,255,255,0.95)' },
+  zoomChipText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' },
+  zoomChipTextActive: { color: '#000' },
+  thumbnailBtn: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm, overflow: 'hidden' },
+  thumbnail: { width: THUMB_SIZE, height: THUMB_SIZE },
   thumbnailPlaceholder: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
@@ -711,18 +510,11 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: dark.accent,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 3,
   },
-  captureCountText: {
-    color: '#000',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-
-  // Shutter
+  captureCountText: { color: '#000', fontSize: 10, fontWeight: '700' },
   shutterOuter: {
     width: SHUTTER_OUTER,
     height: SHUTTER_OUTER,
@@ -739,60 +531,18 @@ const styles = StyleSheet.create({
     height: SHUTTER_OUTER - 6,
     borderRadius: (SHUTTER_OUTER - 6) / 2,
     borderWidth: 3,
-    borderColor: dark.accent,
   },
-  shutterInner: {
-    width: SHUTTER_INNER,
-    height: SHUTTER_INNER,
-    borderRadius: SHUTTER_INNER / 2,
-    backgroundColor: dark.accent,
-  },
-
-  // Camera flip
-  cameraFlipBtn: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Grid
-  gridLine: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-
-  // Permission screen
-  permissionWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  permissionTitle: {
-    color: dark.text,
-    fontSize: fontSize.xl,
-    fontWeight: '600',
-    marginTop: spacing.lg,
-    textAlign: 'center',
-  },
-  permissionSub: {
-    color: dark.textSecondary,
-    fontSize: fontSize.md,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
+  shutterInner: { width: SHUTTER_INNER, height: SHUTTER_INNER, borderRadius: SHUTTER_INNER / 2 },
+  cameraFlipBtn: { width: THUMB_SIZE, height: THUMB_SIZE, justifyContent: 'center', alignItems: 'center' },
+  gridLine: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.2)' },
+  permissionWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  permissionTitle: { color: '#fff', fontSize: fontSize.xl, fontWeight: '600', marginTop: spacing.lg, textAlign: 'center' },
+  permissionSub: { color: 'rgba(255,255,255,0.6)', fontSize: fontSize.md, marginTop: spacing.sm, textAlign: 'center' },
   permissionBtn: {
     marginTop: spacing.xl,
-    backgroundColor: dark.accent,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.full,
   },
-  permissionBtnText: {
-    color: '#000',
-    fontWeight: '700',
-    fontSize: fontSize.md,
-  },
-
+  permissionBtnText: { color: '#000', fontWeight: '700', fontSize: fontSize.md },
 });

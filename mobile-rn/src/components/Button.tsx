@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -7,34 +7,34 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { colors, dark, spacing, borderRadius, fontSize } from '../config/theme';
+import { colors, spacing, borderRadius, fontSize } from '../config/theme';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline';
-  /** Use on dark backgrounds (e.g. home screen) */
-  tone?: 'light' | 'dark';
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  /** @deprecated pass nothing — button adapts to global theme */
+  tone?: 'light' | 'dark';
 }
 
 export const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
   variant = 'primary',
-  tone = 'light',
   loading = false,
   disabled = false,
   icon,
   style,
   textStyle,
 }) => {
+  const { semantic } = useTheme();
   const isDisabled = disabled || loading;
-  const isDark = tone === 'dark';
 
   return (
     <TouchableOpacity
@@ -42,7 +42,7 @@ export const Button: React.FC<ButtonProps> = ({
         styles.button,
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
-        variant === 'outline' && (isDark ? styles.outlineDark : styles.outline),
+        variant === 'outline' && { borderColor: semantic.border },
         isDisabled && styles.disabled,
         style,
       ]}
@@ -52,13 +52,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={
-            variant === 'outline'
-              ? isDark
-                ? dark.text
-                : colors.primary
-              : '#fff'
-          }
+          color={variant === 'outline' ? semantic.primary : '#fff'}
           size="small"
         />
       ) : (
@@ -67,7 +61,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text
             style={[
               styles.text,
-              variant === 'outline' && (isDark ? styles.outlineTextDark : styles.outlineText),
+              variant === 'outline' && { color: semantic.primary },
               textStyle,
             ]}
           >
@@ -95,16 +89,6 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.secondary,
   },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  outlineDark: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
   disabled: {
     opacity: 0.5,
   },
@@ -112,11 +96,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: fontSize.md,
     fontWeight: '600',
-  },
-  outlineText: {
-    color: colors.primary,
-  },
-  outlineTextDark: {
-    color: dark.text,
   },
 });

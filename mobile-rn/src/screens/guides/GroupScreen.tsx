@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { dark, spacing, borderRadius, fontSize } from '../../config/theme';
+import { spacing, borderRadius, fontSize } from '../../config/theme';
+import { SemanticColors } from '../../config/theme';
 import { Guide } from '../../types/guide';
 import { apiClient } from '../../api/client';
 import { useGroupsStore } from '../../store/groupsStore';
@@ -23,6 +24,7 @@ import { useGuidesStore } from '../../store/guidesStore';
 import { GuideGridCard, NewGuideTile } from '../../components/GuideGridCard';
 import { AddToGroupModal } from '../../components/AddToGroupModal';
 import { CREATED_GROUP_ID } from '../../types/group';
+import { useTheme } from '../../theme/ThemeContext';
 
 type RouteParams = {
   Group: {
@@ -44,6 +46,9 @@ export const GroupScreen: React.FC = () => {
   const route = useRoute<RouteProp<RouteParams, 'Group'>>();
   const { groupId, groupName: initialName } = route.params;
   const isVirtual = groupId === CREATED_GROUP_ID;
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
+  const chipSt = useMemo(() => makeChipStyles(semantic), [semantic]);
 
   const groups = useGroupsStore((s) => s.groups);
   const loadGroups = useGroupsStore((s) => s.loadGroups);
@@ -84,9 +89,7 @@ export const GroupScreen: React.FC = () => {
     }
   }, [groupId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   useFocusEffect(
     useCallback(() => {
@@ -124,10 +127,7 @@ export const GroupScreen: React.FC = () => {
 
   const handleCardPress = useCallback(
     (guide: Guide) => {
-      if (selectionMode) {
-        toggleSelect(guide.id);
-        return;
-      }
+      if (selectionMode) { toggleSelect(guide.id); return; }
       if (guide.status === 'completed') {
         navigation.navigate('GuideDetails', { guide });
       }
@@ -138,7 +138,6 @@ export const GroupScreen: React.FC = () => {
   const handleToggleFavorite = useCallback(
     (id: string) => {
       toggleFavoriteAction(id);
-      // optimistic local update for snappier UI
       setGuides((prev) => prev.map((g) => (g.id === id ? { ...g, favorite: !g.favorite } : g)));
     },
     [toggleFavoriteAction],
@@ -150,7 +149,6 @@ export const GroupScreen: React.FC = () => {
       setAddToGroupOpen(false);
       const ok = await addGuidesToGroupAction(targetGroupId, ids);
       if (ok) {
-        // if current view is Created, freshly added guides should vanish from the list
         if (isVirtual) {
           setGuides((prev) => prev.filter((g) => !selectedIds.has(g.id)));
         }
@@ -195,7 +193,6 @@ export const GroupScreen: React.FC = () => {
       allowsEditing: true,
     });
     if (result.canceled || !result.assets[0]) { return; }
-
     try {
       const uploaded = await apiClient.uploadImage(result.assets[0].uri);
       addGuideToStore(uploaded);
@@ -215,18 +212,12 @@ export const GroupScreen: React.FC = () => {
       Alert.alert('Permission Required', 'Please allow camera access');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.9,
-      allowsEditing: true,
-    });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9, allowsEditing: true });
     if (result.canceled || !result.assets[0]) { return; }
     try {
       const uploaded = await apiClient.uploadImage(result.assets[0].uri);
       addGuideToStore(uploaded);
-      if (!isVirtual) {
-        await addGuidesToGroupAction(groupId, [uploaded.id]);
-      }
+      if (!isVirtual) { await addGuidesToGroupAction(groupId, [uploaded.id]); }
       navigation.navigate('Processing', { guide: uploaded });
     } catch (err: any) {
       Alert.alert('Upload Failed', err?.message || 'Please try again');
@@ -260,12 +251,11 @@ export const GroupScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
         {selectionMode ? (
           <>
             <TouchableOpacity style={styles.iconBtn} onPress={exitSelection} accessibilityLabel="Cancel selection">
-              <Ionicons name="close" size={22} color={dark.text} />
+              <Ionicons name="close" size={22} color={semantic.text} />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>
@@ -277,7 +267,7 @@ export const GroupScreen: React.FC = () => {
         ) : (
           <>
             <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={22} color={dark.text} />
+              <Ionicons name="chevron-back" size={22} color={semantic.text} />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
@@ -290,38 +280,35 @@ export const GroupScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Search */}
       <View style={styles.searchRow}>
         <View style={styles.searchField}>
-          <Ionicons name="search" size={18} color={dark.textSecondary} />
+          <Ionicons name="search" size={18} color={semantic.textSecondary} />
           <TextInput
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
             placeholder="Search poses, tags…"
-            placeholderTextColor={dark.textSecondary}
+            placeholderTextColor={semantic.textSecondary}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
           />
           {search.length > 0 ? (
             <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color={dark.textSecondary} />
+              <Ionicons name="close-circle" size={18} color={semantic.textSecondary} />
             </TouchableOpacity>
           ) : null}
         </View>
       </View>
 
-      {/* Filter chips */}
       <View style={styles.chipsRow}>
-        <Chip label="All Guides" active={filter === 'all'} onPress={() => setFilter('all')} />
-        <Chip label="Favorites" active={filter === 'favorites'} onPress={() => setFilter('favorites')} />
+        <Chip styles={chipSt} semantic={semantic} label="All Guides" active={filter === 'all'} onPress={() => setFilter('all')} />
+        <Chip styles={chipSt} semantic={semantic} label="Favorites" active={filter === 'favorites'} onPress={() => setFilter('favorites')} />
       </View>
 
-      {/* Grid */}
       {isLoading && guides.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={dark.primary} />
+          <ActivityIndicator color={semantic.primary} />
         </View>
       ) : error && guides.length === 0 ? (
         <View style={styles.center}>
@@ -342,7 +329,7 @@ export const GroupScreen: React.FC = () => {
           maxToRenderPerBatch={8}
           windowSize={5}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={load} tintColor={dark.primary} colors={[dark.primary]} />
+            <RefreshControl refreshing={isLoading} onRefresh={load} tintColor={semantic.primary} colors={[semantic.primary]} />
           }
           ListEmptyComponent={
             <Text style={styles.empty}>
@@ -352,29 +339,22 @@ export const GroupScreen: React.FC = () => {
         />
       )}
 
-      {/* Selection action bar */}
       {selectionMode && selectedIds.size > 0 ? (
         <View style={styles.actionBar}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => setAddToGroupOpen(true)}
-          >
-            <Ionicons name="folder-outline" size={20} color={dark.text} />
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setAddToGroupOpen(true)}>
+            <Ionicons name="folder-outline" size={20} color={semantic.text} />
             <Text style={styles.actionLabel}>Add to group</Text>
           </TouchableOpacity>
           {!isVirtual ? (
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={handleRemoveFromGroup}
-            >
-              <Ionicons name="remove-circle-outline" size={20} color={dark.error} />
-              <Text style={[styles.actionLabel, { color: dark.error }]}>Remove</Text>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleRemoveFromGroup}>
+              <Ionicons name="remove-circle-outline" size={20} color={semantic.error} />
+              <Text style={[styles.actionLabel, { color: semantic.error }]}>Remove</Text>
             </TouchableOpacity>
           ) : null}
         </View>
       ) : (
         <TouchableOpacity style={styles.fab} onPress={openCamera} accessibilityLabel="Open camera">
-          <Ionicons name="camera" size={26} color={dark.background} />
+          <Ionicons name="camera" size={26} color={semantic.accentText} />
         </TouchableOpacity>
       )}
 
@@ -390,162 +370,126 @@ export const GroupScreen: React.FC = () => {
   );
 };
 
-const Chip: React.FC<{ label: string; active?: boolean; onPress?: () => void }> = ({ label, active, onPress }) => (
-  <TouchableOpacity
-    style={[chipStyles.chip, active && chipStyles.active]}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Text style={[chipStyles.label, active && chipStyles.activeLabel]}>{label}</Text>
+interface ChipProps {
+  styles: ReturnType<typeof makeChipStyles>;
+  semantic: SemanticColors;
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+}
+
+const Chip: React.FC<ChipProps> = ({ styles, semantic, label, active, onPress }) => (
+  <TouchableOpacity style={[styles.chip, active && styles.active]} onPress={onPress} activeOpacity={0.8}>
+    <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
   </TouchableOpacity>
 );
 
-const chipStyles = StyleSheet.create({
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: dark.surface,
-  },
-  active: {
-    backgroundColor: dark.accent,
-  },
-  label: {
-    color: dark.text,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  activeLabel: {
-    color: dark.background,
-  },
-});
+function makeChipStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      backgroundColor: s.surface,
+    },
+    active: {
+      backgroundColor: s.accent,
+    },
+    label: {
+      color: s.text,
+      fontSize: fontSize.sm,
+      fontWeight: '600',
+    },
+    activeLabel: {
+      color: s.accentText,
+    },
+  });
+}
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: dark.text,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    color: dark.textSecondary,
-    fontSize: fontSize.xs,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-  searchRow: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: dark.surface,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    color: dark.text,
-    fontSize: fontSize.md,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  list: {
-    paddingHorizontal: HORIZONTAL_PADDING,
-    paddingBottom: spacing.xxl,
-  },
-  column: {
-    gap: GRID_GAP,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  error: {
-    color: dark.error,
-    marginBottom: spacing.md,
-  },
-  retryBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: dark.surface,
-    borderRadius: borderRadius.full,
-  },
-  retryText: {
-    color: dark.text,
-    fontWeight: '600',
-  },
-  empty: {
-    textAlign: 'center',
-    color: dark.textSecondary,
-    marginTop: spacing.xxl,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: dark.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  actionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.md,
-    backgroundColor: dark.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: dark.border,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  actionLabel: {
-    color: dark.text,
-    fontWeight: '600',
-  },
-});
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: s.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: s.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerCenter: { flex: 1, alignItems: 'center' },
+    headerTitle: { color: s.text, fontSize: fontSize.lg, fontWeight: '700' },
+    headerSubtitle: { color: s.textSecondary, fontSize: fontSize.xs, letterSpacing: 1, marginTop: 2 },
+    searchRow: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+    searchField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: s.surface,
+      borderRadius: borderRadius.full,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      height: 44,
+    },
+    searchInput: { flex: 1, color: s.text, fontSize: fontSize.md },
+    chipsRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    list: { paddingHorizontal: HORIZONTAL_PADDING, paddingBottom: spacing.xxl },
+    column: { gap: GRID_GAP },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    error: { color: s.error, marginBottom: spacing.md },
+    retryBtn: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      backgroundColor: s.surface,
+      borderRadius: borderRadius.full,
+    },
+    retryText: { color: s.text, fontWeight: '600' },
+    empty: { textAlign: 'center', color: s.textSecondary, marginTop: spacing.xxl },
+    fab: {
+      position: 'absolute',
+      right: spacing.lg,
+      bottom: spacing.lg,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: s.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    actionBar: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: spacing.md,
+      backgroundColor: s.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: s.border,
+    },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    actionLabel: { color: s.text, fontWeight: '600' },
+  });
+}

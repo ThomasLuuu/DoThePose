@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { dark, spacing, fontSize, borderRadius } from '../../config/theme';
+import { spacing, fontSize, borderRadius } from '../../config/theme';
+import { SemanticColors } from '../../config/theme';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { useTheme } from '../../theme/ThemeContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -61,11 +63,11 @@ const SLIDES: Slide[] = [
 
 const UploadHero: React.FC = () => {
   return (
-    <View style={styles.uploadHero}>
-      <View style={[styles.uploadCard, styles.uploadCardBackLeft]} />
-      <View style={[styles.uploadCard, styles.uploadCardBackRight]} />
-      <View style={[styles.uploadCard, styles.uploadCardFront]}>
-        <View style={styles.uploadBadge}>
+    <View style={heroStyles.uploadHero}>
+      <View style={[heroStyles.uploadCard, heroStyles.uploadCardBackLeft]} />
+      <View style={[heroStyles.uploadCard, heroStyles.uploadCardBackRight]} />
+      <View style={[heroStyles.uploadCard, heroStyles.uploadCardFront]}>
+        <View style={heroStyles.uploadBadge}>
           <Ionicons name="arrow-up" size={36} color="#000" />
         </View>
       </View>
@@ -75,10 +77,10 @@ const UploadHero: React.FC = () => {
 
 const AIExtractionHero: React.FC = () => {
   return (
-    <View style={styles.aiHeroWrap}>
+    <View style={heroStyles.aiHeroWrap}>
       <Image
         source={require('../../../assets/onboarding/ai_extraction_hero.png')}
-        style={styles.aiHeroImage}
+        style={heroStyles.aiHeroImage}
         resizeMode="contain"
       />
     </View>
@@ -87,6 +89,8 @@ const AIExtractionHero: React.FC = () => {
 
 export const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { semantic } = useTheme();
+  const styles = useMemo(() => makeStyles(semantic), [semantic]);
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
   const listRef = useRef<FlatList<Slide>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -103,9 +107,7 @@ export const OnboardingScreen: React.FC = () => {
   }, []);
 
   const goNext = useCallback(() => {
-    if (activeIndex >= SLIDES.length - 1) {
-      return;
-    }
+    if (activeIndex >= SLIDES.length - 1) { return; }
     listRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
   }, [activeIndex]);
 
@@ -125,7 +127,7 @@ export const OnboardingScreen: React.FC = () => {
         <Text style={styles.subtitle}>{item.subtitle}</Text>
       </View>
     ),
-    [],
+    [styles],
   );
 
   const isLast = activeIndex === SLIDES.length - 1;
@@ -170,7 +172,7 @@ export const OnboardingScreen: React.FC = () => {
               accessibilityLabel="Get started"
             >
               <Text style={styles.getStartedText}>Get Started</Text>
-              <Ionicons name="sparkles" size={20} color="#000" />
+              <Ionicons name="sparkles" size={20} color={semantic.accentText} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -195,29 +197,7 @@ export const OnboardingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: dark.background,
-  },
-  list: {
-    flex: 1,
-  },
-  slide: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 168,
-  },
-  heroWrap: {
-    flex: 1,
-    minHeight: 280,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
+const heroStyles = StyleSheet.create({
   uploadHero: {
     width: '100%',
     height: '100%',
@@ -265,96 +245,120 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: dark.text,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    lineHeight: 22,
-    color: dark.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: dark.background,
-  },
-  dots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive: {
-    width: 28,
-    backgroundColor: dark.accent,
-  },
-  dotInactive: {
-    width: 8,
-    backgroundColor: dark.surfaceMuted,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  lastActions: {
-    gap: spacing.md,
-  },
-  skipLast: {
-    alignSelf: 'flex-start',
-  },
-  skipText: {
-    fontSize: fontSize.md,
-    color: dark.textSecondary,
-    fontWeight: '500',
-  },
-  nextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: dark.accent,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-  },
-  nextText: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: '#000',
-  },
-  nextArrow: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: '#000',
-  },
-  getStartedBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: dark.accent,
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.full,
-    gap: spacing.sm,
-  },
-  getStartedText: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: '#000',
-  },
 });
+
+function makeStyles(s: SemanticColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: s.background,
+    },
+    list: {
+      flex: 1,
+    },
+    slide: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: 168,
+    },
+    heroWrap: {
+      flex: 1,
+      minHeight: 280,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    heroImage: {
+      width: '100%',
+      height: '100%',
+    },
+    title: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: s.text,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: fontSize.md,
+      lineHeight: 22,
+      color: s.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    footer: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      backgroundColor: s.background,
+    },
+    dots: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    dot: {
+      height: 8,
+      borderRadius: 4,
+    },
+    dotActive: {
+      width: 28,
+      backgroundColor: s.accent,
+    },
+    dotInactive: {
+      width: 8,
+      backgroundColor: s.surfaceMuted,
+    },
+    rowActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    lastActions: {
+      gap: spacing.md,
+    },
+    skipText: {
+      fontSize: fontSize.md,
+      color: s.textSecondary,
+      fontWeight: '500',
+    },
+    nextBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: s.accent,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.full,
+      gap: spacing.xs,
+    },
+    nextText: {
+      fontSize: fontSize.md,
+      fontWeight: '700',
+      color: s.accentText,
+    },
+    nextArrow: {
+      fontSize: fontSize.md,
+      fontWeight: '700',
+      color: s.accentText,
+    },
+    getStartedBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: s.accent,
+      paddingVertical: spacing.md + 2,
+      paddingHorizontal: spacing.xl,
+      borderRadius: borderRadius.full,
+      gap: spacing.sm,
+    },
+    getStartedText: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: s.accentText,
+    },
+  });
+}

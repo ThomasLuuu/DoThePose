@@ -20,16 +20,48 @@ export const colors = {
   borderDark: '#334155',
 };
 
-/** Semantic tokens for PoseGuide dark home and matching stack screens */
-export const dark = {
+export type SemanticColors = {
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  text: string;
+  textSecondary: string;
+  border: string;
+  /** Brand highlight — used as button/badge backgrounds and icon tints. */
+  accent: string;
+  /** Text/icon color to place ON top of accent-coloured backgrounds. */
+  accentText: string;
+  primary: string;
+  error: string;
+  success: string;
+};
+
+/** Semantic tokens – dark palette */
+export const dark: SemanticColors = {
   background: '#000000',
   surface: '#1C1C1E',
   surfaceMuted: '#2C2C2E',
   text: '#FFFFFF',
   textSecondary: '#8E8E93',
   border: '#38383A',
-  /** Gallery / upload accent (mockup yellow ring) */
   accent: '#FFD60A',
+  accentText: '#000000',
+  primary: colors.primary,
+  error: colors.error,
+  success: colors.success,
+};
+
+/** Semantic tokens – light palette */
+export const light: SemanticColors = {
+  background: '#F2F2F7',
+  surface: '#FFFFFF',
+  surfaceMuted: '#E5E5EA',
+  text: '#000000',
+  textSecondary: '#6C6C70',
+  border: '#C6C6C8',
+  /** In light mode use primary indigo — readable on light backgrounds. */
+  accent: colors.primary,
+  accentText: '#ffffff',
   primary: colors.primary,
   error: colors.error,
   success: colors.success,
