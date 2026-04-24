@@ -72,7 +72,7 @@ class LineRenderer {
 
     console.log('Guide image saved:', outputPath);
 
-    await sharp(Buffer.from(svg))
+    await sharp(outputPath)
       .resize(200, 200, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(thumbnailPath);

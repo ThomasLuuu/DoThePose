@@ -9,6 +9,13 @@ export interface SavedPhoto {
   filename: string;
 }
 
+const LIST_CACHE_TTL_MS = 2500;
+let listCache: { photos: SavedPhoto[]; fetchedAt: number } | null = null;
+
+export function invalidateSavedPhotosListCache(): void {
+  listCache = null;
+}
+
 async function ensureDir(): Promise<void> {
   const info = await FileSystem.getInfoAsync(SAVED_DIR);
   if (!info.exists) {
@@ -16,7 +23,13 @@ async function ensureDir(): Promise<void> {
   }
 }
 
-export async function listSavedPhotos(): Promise<SavedPhoto[]> {
+export async function listSavedPhotos(opts?: { forceRefresh?: boolean }): Promise<SavedPhoto[]> {
+  const forceRefresh = opts?.forceRefresh === true;
+  const now = Date.now();
+  if (!forceRefresh && listCache && now - listCache.fetchedAt < LIST_CACHE_TTL_MS) {
+    return listCache.photos;
+  }
+
   try {
     await ensureDir();
     const entries = await FileSystem.readDirectoryAsync(SAVED_DIR);
@@ -34,6 +47,7 @@ export async function listSavedPhotos(): Promise<SavedPhoto[]> {
     }
 
     photos.sort((a, b) => b.createdAt - a.createdAt);
+    listCache = { photos, fetchedAt: Date.now() };
     return photos;
   } catch {
     return [];
@@ -46,6 +60,7 @@ export async function deleteSavedPhoto(uri: string): Promise<boolean> {
     if (info.exists) {
       await FileSystem.deleteAsync(uri, { idempotent: true });
     }
+    invalidateSavedPhotosListCache();
     return true;
   } catch {
     return false;
@@ -54,7 +69,8 @@ export async function deleteSavedPhoto(uri: string): Promise<boolean> {
 
 export async function clearAllSavedPhotos(): Promise<number> {
   try {
-    const photos = await listSavedPhotos();
+    invalidateSavedPhotosListCache();
+    const photos = await listSavedPhotos({ forceRefresh: true });
     let deletedCount = 0;
 
     for (const photo of photos) {
@@ -64,6 +80,7 @@ export async function clearAllSavedPhotos(): Promise<number> {
       }
     }
 
+    invalidateSavedPhotosListCache();
     return deletedCount;
   } catch {
     return 0;
@@ -77,5 +94,6 @@ export async function saveUriToAppStorage(sourceUri: string, id: string): Promis
   if (!info.exists) {
     await FileSystem.copyAsync({ from: sourceUri, to: dest });
   }
+  invalidateSavedPhotosListCache();
   return dest;
 }

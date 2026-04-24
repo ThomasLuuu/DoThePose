@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import type { SharedRgbaFrame } from './background_removal';
 
 export interface Point {
   x: number;
@@ -34,17 +35,30 @@ interface HoughLine {
 }
 
 class CompositionExtractionService {
-  async extractComposition(imagePath: string): Promise<CompositionElements> {
+  async extractComposition(
+    imagePath: string,
+    sharedRgba?: SharedRgbaFrame
+  ): Promise<CompositionElements> {
     console.log('Extracting composition elements from image:', imagePath);
     
     try {
-      const { data: colorData, info } = await sharp(imagePath)
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+      let colorData: Buffer;
+      let width: number;
+      let height: number;
 
-      const width = info.width;
-      const height = info.height;
+      if (sharedRgba) {
+        colorData = sharedRgba.data;
+        width = sharedRgba.width;
+        height = sharedRgba.height;
+      } else {
+        const { data, info } = await sharp(imagePath)
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        colorData = data;
+        width = info.width;
+        height = info.height;
+      }
       const channels = 4;
 
       const grayData = Buffer.alloc(width * height);

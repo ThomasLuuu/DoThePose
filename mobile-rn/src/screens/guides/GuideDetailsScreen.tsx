@@ -49,7 +49,8 @@ export const GuideDetailsScreen: React.FC = () => {
   const [guide, setGuide] = useState<Guide>(initialGuide);
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
 
-  const { deleteGuide, updateGuideInList } = useGuidesStore();
+  const deleteGuide = useGuidesStore((s) => s.deleteGuide);
+  const updateGuideInList = useGuidesStore((s) => s.updateGuideInList);
   const groups = useGroupsStore((s) => s.groups);
   const loadGroups = useGroupsStore((s) => s.loadGroups);
   const createGroupAction = useGroupsStore((s) => s.createGroup);

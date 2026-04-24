@@ -9,6 +9,7 @@ import { jobQueue } from '../services/job_queue';
 import { Guide, DEFAULT_SETTINGS, CreateGuideRequest, UpdateGuideRequest } from '../models/guide';
 import { AppError } from '../middleware/errorHandler';
 import { guideEditService, GuideEditMode } from '../services/guide_edit_service';
+import { runGuideEditCpuTask } from '../services/edit_cpu_pool';
 
 function withGroupIds<T extends Guide | null>(guide: T): T {
   if (!guide) { return guide; }
@@ -175,7 +176,11 @@ router.post('/:id/mode/:mode', async (req: Request, res: Response, next: NextFun
       throw new AppError('Guide is not ready', 400);
     }
 
-    const result = await guideEditService.ensureVariant(guide, mode as GuideEditMode);
+    const result = await runGuideEditCpuTask<{
+      imageUrl: string;
+      available: boolean;
+      reason?: string;
+    }>({ op: 'ensureVariant', guide, mode: mode as GuideEditMode });
     res.json({
       status: 'success',
       data: {
@@ -199,7 +204,10 @@ router.post('/:id/clean-background', async (req: Request, res: Response, next: N
       throw new AppError('Guide is not ready', 400);
     }
 
-    const updated = await guideEditService.cleanGuideBackground(req.params.id);
+    const updated = await runGuideEditCpuTask<Guide | null>({
+      op: 'cleanBackground',
+      guideId: req.params.id,
+    });
     if (!updated) {
       throw new AppError('Could not clean background', 400);
     }
@@ -305,7 +313,11 @@ router.post(
         throw new AppError('Guide is not ready', 400);
       }
 
-      const updated = await guideEditService.replaceGuideImageFromFile(guide.id, req.file.path);
+      const updated = await runGuideEditCpuTask<Guide | null>({
+        op: 'replaceGuideImage',
+        guideId: guide.id,
+        tempFilePath: req.file.path,
+      });
 
       try {
         if (fs.existsSync(req.file.path)) {

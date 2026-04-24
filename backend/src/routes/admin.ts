@@ -11,6 +11,7 @@ router.get('/stats', (req: Request, res: Response, next: NextFunction) => {
     const sinceMs = sinceHours * 60 * 60 * 1000;
 
     const processingStats = telemetry.getAggregatedStats(sinceMs);
+    const httpLatency = telemetry.getHttpLatencyStats(sinceMs);
     const storageStats = cleanupService.getStorageStats();
     const { total: totalGuides } = guidesRepository.findAll(1, 1);
 
@@ -18,6 +19,7 @@ router.get('/stats', (req: Request, res: Response, next: NextFunction) => {
       status: 'success',
       data: {
         processing: processingStats,
+        httpLatency,
         storage: storageStats,
         guides: {
           total: totalGuides,

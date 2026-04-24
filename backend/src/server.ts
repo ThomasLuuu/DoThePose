@@ -7,6 +7,8 @@ import guidesRouter from './routes/guides';
 import groupsRouter from './routes/groups';
 import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
+import { telemetry } from './utils/telemetry';
+import { normalizeHttpRouteKey } from './utils/http_telemetry';
 
 dotenv.config();
 
@@ -26,6 +28,24 @@ const modelsDir = './models';
 
 app.use(cors());
 app.use(express.json());
+
+app.use((req, res, next) => {
+  const started = Date.now();
+  res.on('finish', () => {
+    try {
+      const fullPath = (req.baseUrl || '') + (req.path || req.url || '');
+      if (!fullPath.startsWith('/api')) {
+        return;
+      }
+      const routeKey = normalizeHttpRouteKey(req.method, fullPath);
+      telemetry.recordHttpLatency(routeKey, Date.now() - started);
+    } catch {
+      // ignore telemetry errors
+    }
+  });
+  next();
+});
+
 app.use('/processed', express.static(path.resolve(processedDir)));
 app.use('/uploads', express.static(path.resolve(uploadDir)));
 

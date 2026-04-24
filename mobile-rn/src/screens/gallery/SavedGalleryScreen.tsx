@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -38,15 +38,11 @@ export const SavedGalleryScreen: React.FC = () => {
     } else {
       setLoading(true);
     }
-    const result = await listSavedPhotos();
+    const result = await listSavedPhotos({ forceRefresh: refresh });
     setPhotos(result);
     setLoading(false);
     setRefreshing(false);
   }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useFocusEffect(
     useCallback(() => {

@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 import { GuideSettings, GuideLayers, ProcessingResult } from '../models/guide';
-import { backgroundRemovalService } from './background_removal';
+import { backgroundRemovalService, type SharedRgbaFrame } from './background_removal';
 import { poseExtractionService, PoseKeypoints } from './pose_extraction';
 import { compositionExtractionService, CompositionElements } from './composition_extraction';
 import { fetchLineArt } from './gradio_line_art';
@@ -145,7 +145,7 @@ class ProcessingPipeline {
       const renderStart = Date.now();
       const normalizedGuideBuffer = await this.normalizeLineArt(lineArtBuffer);
       await sharp(normalizedGuideBuffer).png().toFile(fullGuidePath);
-      await sharp(normalizedGuideBuffer)
+      await sharp(fullGuidePath)
         .resize(200, 200, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toFile(fullThumbPath);
@@ -180,18 +180,30 @@ class ProcessingPipeline {
   ): Promise<{ detectedLayers: GuideLayers }> {
     let foregroundMask, poseKeypoints, compositionElements;
 
+    const decodeStart = Date.now();
+    const { data: sharedRgbaData, info: sharedInfo } = await sharp(imagePath)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const sharedFrame: SharedRgbaFrame = {
+      width: sharedInfo.width,
+      height: sharedInfo.height,
+      data: sharedRgbaData,
+    };
+    console.log(`[PIPELINE] shared_rgba_decode: ${Date.now() - decodeStart}ms`);
+
     const parallelStart = Date.now();
     const [bgResult, poseResult, compResult] = await Promise.allSettled([
       (async () => {
         const bgStart = Date.now();
-        const mask = await backgroundRemovalService.removeBackground(imagePath);
+        const mask = await backgroundRemovalService.removeBackground(imagePath, sharedFrame);
         console.log(`[PIPELINE] background_removal: ${Date.now() - bgStart}ms`);
         telemetry.recordStage(metric, 'background_removal', true, bgStart);
         return mask;
       })(),
       (async () => {
         const poseStart = Date.now();
-        const kp = await poseExtractionService.extractPose(imagePath);
+        const kp = await poseExtractionService.extractPose(imagePath, sharedFrame);
         console.log(`[PIPELINE] pose_extraction: ${Date.now() - poseStart}ms`);
         telemetry.recordStage(metric, 'pose_extraction', true, poseStart, {
           keypointsCount: kp?.keypoints.length || 0,
@@ -200,7 +212,7 @@ class ProcessingPipeline {
       })(),
       (async () => {
         const compStart = Date.now();
-        const ce = await compositionExtractionService.extractComposition(imagePath);
+        const ce = await compositionExtractionService.extractComposition(imagePath, sharedFrame);
         console.log(`[PIPELINE] composition_extraction: ${Date.now() - compStart}ms`);
         telemetry.recordStage(metric, 'composition_extraction', true, compStart, {
           hasHorizon: ce.horizonLine !== null,

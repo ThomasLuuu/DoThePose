@@ -1,16 +1,18 @@
 import { Worker } from 'worker_threads';
 import path from 'path';
 import { GuideSettings } from '../models/guide';
+import { telemetry } from '../utils/telemetry';
 
 interface QueuedJob {
   guideId: string;
   imagePath: string;
   settings: GuideSettings;
+  enqueuedAt: number;
   resolve: (result: any) => void;
   reject: (error: Error) => void;
 }
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = parseInt(process.env.JOB_QUEUE_MAX_CONCURRENT || '2', 10) || 2;
 
 class JobQueue {
   private queue: QueuedJob[] = [];
@@ -22,7 +24,15 @@ class JobQueue {
     settings: GuideSettings
   ): Promise<any> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ guideId, imagePath, settings, resolve, reject });
+      const enqueuedAt = Date.now();
+      this.queue.push({
+        guideId,
+        imagePath,
+        settings,
+        enqueuedAt,
+        resolve,
+        reject,
+      });
       console.log(`[JOB_QUEUE] Enqueued guide ${guideId}, queue depth: ${this.queue.length}, active: ${this.activeCount}`);
       this.processNext();
     });
@@ -37,9 +47,15 @@ class JobQueue {
   }
 
   private runWorker(job: QueuedJob) {
+    const waitMs = Date.now() - job.enqueuedAt;
+    telemetry.recordQueueWaitMs(job.guideId, waitMs);
+
     const workerPath = this.resolveWorkerPath();
+    console.log(
+      `[JOB_QUEUE] Starting worker for guide ${job.guideId}, queueWaitMs: ${waitMs}, path: ${workerPath}`
+    );
     const execArgv = this.getExecArgv();
-    console.log(`[JOB_QUEUE] Starting worker for guide ${job.guideId}, path: ${workerPath}, execArgv: [${execArgv.join(', ')}]`);
+    console.log(`[JOB_QUEUE] Worker execArgv: [${execArgv.join(', ')}]`);
 
     const worker = new Worker(workerPath, {
       workerData: {

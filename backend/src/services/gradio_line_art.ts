@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 
 const GRADIO_SPACE_URL =
@@ -7,6 +7,23 @@ const GRADIO_SPACE_URL =
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 2000;
+
+const PREDICT_TIMEOUT_MS = parseInt(process.env.GRADIO_PREDICT_TIMEOUT_MS || '120000', 10) || 120_000;
+const FETCH_URL_TIMEOUT_MS = parseInt(process.env.GRADIO_FETCH_URL_TIMEOUT_MS || '60000', 10) || 60_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 const STYLE_MAP: Record<string, string> = {
   portrait_minimal: 'style 1',
@@ -31,7 +48,7 @@ async function blobToBuffer(blob: Blob): Promise<Buffer> {
 }
 
 async function fetchUrlToBuffer(url: string): Promise<Buffer> {
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, FETCH_URL_TIMEOUT_MS);
   if (!res.ok) {
     throw new Error(`Failed to fetch image from ${url}: ${res.status}`);
   }
@@ -57,17 +74,21 @@ async function callGradioViaHttp(
     try {
       console.log(`[GRADIO] HTTP Attempt ${attempt}/${MAX_RETRIES}: Calling ${GRADIO_SPACE_URL}api/predict`);
       
-      const response = await fetch(`${GRADIO_SPACE_URL}api/predict`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetchWithTimeout(
+        `${GRADIO_SPACE_URL}api/predict`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: [base64Image, version],
+            fn_index: 0,
+            session_hash: `node_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          }),
         },
-        body: JSON.stringify({
-          data: [base64Image, version],
-          fn_index: 0,
-          session_hash: `node_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        }),
-      });
+        PREDICT_TIMEOUT_MS
+      );
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -133,7 +154,7 @@ export async function fetchLineArt(
   console.log(`[GRADIO] Fetching line art for ${imagePath} with version="${version}"`);
 
   try {
-    const imageBuffer = fs.readFileSync(imagePath);
+    const imageBuffer = await fsPromises.readFile(imagePath);
     const ext = path.extname(imagePath);
     const mimeType = getMimeType(ext);
 

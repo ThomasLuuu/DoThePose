@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -35,15 +35,13 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { semantic } = useTheme();
   const styles = useMemo(() => makeStyles(semantic), [semantic]);
-  const {
-    groups,
-    unassignedCount,
-    isLoading: isLoadingGroups,
-    error,
-    loadGroups,
-    createGroup,
-    deleteGroup,
-  } = useGroupsStore();
+  const groups = useGroupsStore((s) => s.groups);
+  const unassignedCount = useGroupsStore((s) => s.unassignedCount);
+  const isLoadingGroups = useGroupsStore((s) => s.isLoading);
+  const error = useGroupsStore((s) => s.error);
+  const loadGroups = useGroupsStore((s) => s.loadGroups);
+  const createGroup = useGroupsStore((s) => s.createGroup);
+  const deleteGroup = useGroupsStore((s) => s.deleteGroup);
   const loadGuides = useGuidesStore((state) => state.loadGuides);
 
   const {
@@ -63,19 +61,22 @@ export const HomeScreen: React.FC = () => {
   const pendingUri = usePendingUploadStore((s) => s.pendingUri);
   const setPendingUri = usePendingUploadStore((s) => s.setPendingUri);
 
-  useEffect(() => {
-    loadGroups();
-    loadGuides(true);
-  }, [loadGroups, loadGuides]);
+  const homeFirstFocusRef = useRef(true);
 
   useFocusEffect(
     useCallback(() => {
-      loadGroups({ silent: true });
+      if (homeFirstFocusRef.current) {
+        homeFirstFocusRef.current = false;
+        loadGroups();
+        loadGuides(true);
+      } else {
+        loadGroups({ silent: true });
+      }
       if (pendingUri) {
         selectImageUri(pendingUri);
         setPendingUri(null);
       }
-    }, [loadGroups, pendingUri, selectImageUri, setPendingUri]),
+    }, [loadGroups, loadGuides, pendingUri, selectImageUri, setPendingUri]),
   );
 
   const handleRefresh = useCallback(() => {

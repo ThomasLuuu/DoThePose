@@ -242,10 +242,6 @@ export const SettingsScreen: React.FC = () => {
     setLoadingSavedCount(false);
   }, []);
 
-  useEffect(() => {
-    loadSavedPhotoCount();
-  }, [loadSavedPhotoCount]);
-
   useFocusEffect(
     useCallback(() => {
       loadSavedPhotoCount();

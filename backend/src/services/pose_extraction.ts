@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import type { SharedRgbaFrame } from './background_removal';
 
 export interface Keypoint {
   name: string;
@@ -41,18 +42,32 @@ interface BoundingBox {
 }
 
 class PoseExtractionService {
-  async extractPose(imagePath: string): Promise<PoseKeypoints | null> {
+  async extractPose(
+    imagePath: string,
+    sharedRgba?: SharedRgbaFrame
+  ): Promise<PoseKeypoints | null> {
     console.log('Extracting pose from image:', imagePath);
     
     try {
-      const metadata = await sharp(imagePath).metadata();
-      const width = metadata.width || 800;
-      const height = metadata.height || 600;
+      let width: number;
+      let height: number;
+      let data: Buffer;
 
-      const { data } = await sharp(imagePath)
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+      if (sharedRgba) {
+        width = sharedRgba.width;
+        height = sharedRgba.height;
+        data = sharedRgba.data;
+      } else {
+        const metadata = await sharp(imagePath).metadata();
+        width = metadata.width || 800;
+        height = metadata.height || 600;
+
+        const raw = await sharp(imagePath)
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        data = raw.data;
+      }
 
       const personBbox = await this.detectPerson(data, width, height);
       

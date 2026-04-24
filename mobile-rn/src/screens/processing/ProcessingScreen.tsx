@@ -111,9 +111,10 @@ export const ProcessingScreen: React.FC = () => {
 
     checkStatus();
 
+    const ELAPSED_TICK_MS = 2000;
     const tickInterval = setInterval(() => {
       if (mountedRef.current) { setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000)); }
-    }, 1000);
+    }, ELAPSED_TICK_MS);
 
     return () => {
       mountedRef.current = false;

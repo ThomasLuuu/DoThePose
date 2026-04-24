@@ -21,12 +21,27 @@ interface AggregatedStats {
   failureCount: number;
   avgProcessingTimeMs: number;
   p95ProcessingTimeMs: number;
-  stageStats: Record<string, { avgTimeMs: number; successRate: number }>;
+  stageStats: Record<
+    string,
+    { avgTimeMs: number; p95TimeMs: number; successRate: number }
+  >;
+  queueWait?: {
+    sampleCount: number;
+    avgWaitMs: number;
+    p95WaitMs: number;
+  };
 }
+
+import type { DurationSample, LatencyBucket } from './http_telemetry';
+import { aggregateDurationsMs } from './http_telemetry';
 
 class Telemetry {
   private metrics: ProcessingMetrics[] = [];
   private maxMetrics = 1000;
+  private httpSamples: DurationSample[] = [];
+  private maxHttpSamples = 2000;
+  private queueWaitSamples: DurationSample[] = [];
+  private maxQueueWaitSamples = 1000;
 
   startProcessing(guideId: string): ProcessingMetrics {
     const metric: ProcessingMetrics = {
@@ -61,6 +76,49 @@ class Telemetry {
     });
   }
 
+  recordHttpLatency(routeKey: string, durationMs: number): void {
+    this.httpSamples.push({
+      key: routeKey,
+      durationMs,
+      ts: Date.now(),
+    });
+    if (this.httpSamples.length > this.maxHttpSamples) {
+      this.httpSamples = this.httpSamples.slice(-this.maxHttpSamples);
+    }
+  }
+
+  recordQueueWaitMs(guideId: string, waitMs: number): void {
+    this.queueWaitSamples.push({
+      key: guideId,
+      durationMs: waitMs,
+      ts: Date.now(),
+    });
+    if (this.queueWaitSamples.length > this.maxQueueWaitSamples) {
+      this.queueWaitSamples = this.queueWaitSamples.slice(-this.maxQueueWaitSamples);
+    }
+  }
+
+  getHttpLatencyStats(sinceMs?: number): Record<string, LatencyBucket> {
+    return aggregateDurationsMs(this.httpSamples, sinceMs);
+  }
+
+  getQueueWaitStats(sinceMs?: number): { sampleCount: number; avgWaitMs: number; p95WaitMs: number } {
+    const relevant = sinceMs
+      ? this.queueWaitSamples.filter((s) => s.ts >= Date.now() - sinceMs)
+      : this.queueWaitSamples;
+    if (relevant.length === 0) {
+      return { sampleCount: 0, avgWaitMs: 0, p95WaitMs: 0 };
+    }
+    const waits = relevant.map((s) => s.durationMs).sort((a, b) => a - b);
+    const sum = waits.reduce((a, b) => a + b, 0);
+    const p95Idx = Math.min(waits.length - 1, Math.floor(waits.length * 0.95));
+    return {
+      sampleCount: waits.length,
+      avgWaitMs: sum / waits.length,
+      p95WaitMs: waits[p95Idx] ?? 0,
+    };
+  }
+
   completeProcessing(metric: ProcessingMetrics, success: boolean, errorMessage?: string): void {
     metric.endTime = Date.now();
     metric.success = success;
@@ -89,6 +147,7 @@ class Telemetry {
         avgProcessingTimeMs: 0,
         p95ProcessingTimeMs: 0,
         stageStats: {},
+        queueWait: this.getQueueWaitStats(sinceMs),
       };
     }
 
@@ -103,7 +162,10 @@ class Telemetry {
     const p95Index = Math.floor(processingTimes.length * 0.95);
     const p95ProcessingTime = processingTimes[p95Index] || processingTimes[processingTimes.length - 1];
 
-    const stageStats: Record<string, { avgTimeMs: number; successRate: number }> = {};
+    const stageStats: Record<
+      string,
+      { avgTimeMs: number; p95TimeMs: number; successRate: number }
+    > = {};
     const stageData: Record<string, { times: number[]; successes: number; total: number }> = {};
 
     for (const metric of relevantMetrics) {
@@ -120,8 +182,11 @@ class Telemetry {
     }
 
     for (const [name, data] of Object.entries(stageData)) {
+      const sorted = [...data.times].sort((a, b) => a - b);
+      const p95Idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
       stageStats[name] = {
-        avgTimeMs: data.times.reduce((a, b) => a + b, 0) / data.times.length,
+        avgTimeMs: sorted.reduce((a, b) => a + b, 0) / sorted.length,
+        p95TimeMs: sorted[p95Idx] ?? 0,
         successRate: data.successes / data.total,
       };
     }
@@ -133,6 +198,7 @@ class Telemetry {
       avgProcessingTimeMs: avgProcessingTime,
       p95ProcessingTimeMs: p95ProcessingTime,
       stageStats,
+      queueWait: this.getQueueWaitStats(sinceMs),
     };
   }
 

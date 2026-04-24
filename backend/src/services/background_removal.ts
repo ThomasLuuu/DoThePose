@@ -8,22 +8,43 @@ export interface ForegroundMask {
   data: Buffer;
 }
 
+/** Single decoded RGBA frame from sharp(imagePath).ensureAlpha().raw() — avoids triple decode in legacy pipeline. */
+export interface SharedRgbaFrame {
+  width: number;
+  height: number;
+  data: Buffer;
+}
+
 class BackgroundRemovalService {
   private modelLoaded = false;
 
-  async removeBackground(imagePath: string): Promise<ForegroundMask> {
+  async removeBackground(
+    imagePath: string,
+    sharedRgba?: SharedRgbaFrame
+  ): Promise<ForegroundMask> {
     console.log('Removing background from image:', imagePath);
     
     try {
-      const image = sharp(imagePath);
-      const metadata = await image.metadata();
-      const width = metadata.width || 800;
-      const height = metadata.height || 600;
+      let width: number;
+      let height: number;
+      let data: Buffer;
 
-      const { data } = await image
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
+      if (sharedRgba) {
+        width = sharedRgba.width;
+        height = sharedRgba.height;
+        data = sharedRgba.data;
+      } else {
+        const image = sharp(imagePath);
+        const metadata = await image.metadata();
+        width = metadata.width || 800;
+        height = metadata.height || 600;
+
+        const raw = await image
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        data = raw.data;
+      }
 
       const maskData = await this.computeSegmentationMask(data, width, height);
       

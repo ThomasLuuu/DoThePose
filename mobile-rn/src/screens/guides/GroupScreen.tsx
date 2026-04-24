@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -88,8 +88,6 @@ export const GroupScreen: React.FC = () => {
       setIsLoading(false);
     }
   }, [groupId]);
-
-  useEffect(() => { load(); }, [load]);
 
   useFocusEffect(
     useCallback(() => {
