@@ -5,12 +5,15 @@ import { GuideSettings, GuideLayers, ProcessingResult } from '../models/guide';
 import { backgroundRemovalService, type SharedRgbaFrame } from './background_removal';
 import { poseExtractionService, PoseKeypoints } from './pose_extraction';
 import { compositionExtractionService, CompositionElements } from './composition_extraction';
-import { fetchLineArt } from './gradio_line_art';
+import { fetchLineArt } from './line_art_onnx';
 import { lineRenderer } from './line_renderer';
 import { telemetry } from '../utils/telemetry';
 
-const processedDir = process.env.PROCESSED_DIR || './processed';
 const MAX_DIMENSION = 1280;
+
+function getProcessedDir(): string {
+  return process.env.PROCESSED_DIR || './processed';
+}
 
 class ProcessingPipeline {
   private async normalizeImage(imagePath: string): Promise<string> {
@@ -45,7 +48,7 @@ class ProcessingPipeline {
 
     imagePath = await this.normalizeImage(imagePath);
 
-    const outputDir = path.resolve(processedDir);
+    const outputDir = path.resolve(getProcessedDir());
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
@@ -95,7 +98,7 @@ class ProcessingPipeline {
   }
 
   /**
-   * Converts a Gradio line-art buffer (typically white-background, black strokes)
+   * Converts a line-art buffer (typically white-background, black strokes)
    * into a transparent-background dark-line PNG.
    * Near-white pixels become fully transparent; remaining pixels keep their color.
    */
@@ -132,13 +135,13 @@ class ProcessingPipeline {
   ): Promise<{ detectedLayers: GuideLayers } | null> {
     try {
       const portraitStart = Date.now();
-      console.log(`[PIPELINE] Starting Gradio line-art extraction for guide ${guideId}`);
+      console.log(`[PIPELINE] Starting ONNX line-art extraction for guide ${guideId}`);
 
       const lineArtBuffer = await fetchLineArt(imagePath, settings.style);
 
-      console.log(`[PIPELINE] gradio_line_art: ${Date.now() - portraitStart}ms`);
-      telemetry.recordStage(metric, 'gradio_line_art', true, portraitStart, {
-        usedGradio: true,
+      console.log(`[PIPELINE] onnx_line_art: ${Date.now() - portraitStart}ms`);
+      telemetry.recordStage(metric, 'onnx_line_art', true, portraitStart, {
+        usedOnnx: true,
         styleVersion: settings.style || 'portrait_minimal',
       });
 
@@ -162,8 +165,8 @@ class ProcessingPipeline {
       return { detectedLayers };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('[PIPELINE] Gradio line-art processing failed:', errorMsg);
-      telemetry.recordStage(metric, 'gradio_line_art', false, Date.now(), {
+      console.error('[PIPELINE] ONNX line-art processing failed:', errorMsg);
+      telemetry.recordStage(metric, 'onnx_line_art', false, Date.now(), {
         error: errorMsg,
       });
       return null;
