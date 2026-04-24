@@ -13,7 +13,7 @@ function resolveModelPath(): string {
   return path.resolve(process.cwd(), 'models', 'model.onnx');
 }
 
-async function getSession(): Promise<ort.InferenceSession> {
+export async function getSession(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
     const modelPath = resolveModelPath();
     if (!fs.existsSync(modelPath)) {
@@ -125,17 +125,30 @@ async function imagePathToNchwFloat32(
   return { tensor, inputName };
 }
 
+export interface LineArtResult {
+  buffer: Buffer;
+  preMs: number;
+  inferenceMs: number;
+  postMs: number;
+}
+
 /**
  * Runs local ONNX line-art model (informative-drawings style).
  * `style` is accepted for API compatibility with the old Gradio path; this model has a single style.
+ * Returns the PNG buffer along with sub-stage timing breakdowns.
  */
-export async function fetchLineArt(imagePath: string, _style?: string): Promise<Buffer> {
-  const start = Date.now();
+export async function fetchLineArt(imagePath: string, _style?: string): Promise<LineArtResult> {
+  const totalStart = Date.now();
   const session = await getSession();
-  const { tensor, inputName } = await imagePathToNchwFloat32(session, imagePath);
 
+  const preStart = Date.now();
+  const { tensor, inputName } = await imagePathToNchwFloat32(session, imagePath);
+  const preMs = Date.now() - preStart;
+
+  const inferenceStart = Date.now();
   const feeds: Record<string, ort.Tensor> = { [inputName]: tensor };
   const results = await session.run(feeds);
+  const inferenceMs = Date.now() - inferenceStart;
 
   const outName =
     session.outputNames.length === 1
@@ -153,7 +166,12 @@ export async function fetchLineArt(imagePath: string, _style?: string): Promise<
     throw new Error(`[ONNX_LINE_ART] Expected float32 output, got ${typeof out.data}`);
   }
 
+  const postStart = Date.now();
   const png = await convertOnnxGreyOutputToPng(out.dims, out.data);
-  console.log(`[ONNX_LINE_ART] inference+encode ${Date.now() - start}ms, ${imagePath}`);
-  return png;
+  const postMs = Date.now() - postStart;
+
+  console.log(
+    `[ONNX_LINE_ART] pre:${preMs}ms inference:${inferenceMs}ms post:${postMs}ms total:${Date.now() - totalStart}ms path:${imagePath}`
+  );
+  return { buffer: png, preMs, inferenceMs, postMs };
 }

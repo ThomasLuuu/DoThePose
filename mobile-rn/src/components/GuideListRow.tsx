@@ -30,7 +30,7 @@ function statusSubtitle(guide: Guide): string {
     return guide.favorite ? 'Favorite · Pose guide' : 'Pose guide';
   }
   if (guide.status === 'pending' || guide.status === 'processing') {
-    return 'Processing…';
+    return 'Processing — tap to track';
   }
   if (guide.status === 'failed') {
     return 'Failed';
@@ -61,9 +61,9 @@ export const GuideListRow: React.FC<GuideListRowProps> = ({
   return (
     <TouchableOpacity
       style={styles.row}
-      onPress={isReady ? onPress : undefined}
+      onPress={onPress}
       onLongPress={onLongPress}
-      activeOpacity={isReady ? 0.7 : 1}
+      activeOpacity={0.7}
     >
       <View style={styles.leading}>
         {thumbnailUrl ? (

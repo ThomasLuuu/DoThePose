@@ -78,11 +78,13 @@ export const GuideGridCard: React.FC<GuideGridCardProps> = React.memo(({
         {isProcessing ? (
           <View style={styles.overlay}>
             <ActivityIndicator color={semantic.text} />
+            <Text style={styles.overlayHint}>Tap to track</Text>
           </View>
         ) : null}
         {isFailed ? (
           <View style={styles.overlay}>
             <Ionicons name="alert-circle-outline" size={28} color={semantic.error} />
+            <Text style={styles.overlayHint}>Failed</Text>
           </View>
         ) : null}
 
@@ -164,6 +166,13 @@ function makeStyles(s: SemanticColors) {
       backgroundColor: 'rgba(0,0,0,0.45)',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
+    },
+    overlayHint: {
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+      color: 'rgba(255,255,255,0.85)',
+      letterSpacing: 0.5,
     },
     heart: {
       position: 'absolute',

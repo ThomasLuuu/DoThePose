@@ -126,6 +126,10 @@ export const GroupScreen: React.FC = () => {
   const handleCardPress = useCallback(
     (guide: Guide) => {
       if (selectionMode) { toggleSelect(guide.id); return; }
+      if (guide.status === 'pending' || guide.status === 'processing') {
+        navigation.navigate('Processing', { guide });
+        return;
+      }
       if (guide.status === 'completed') {
         navigation.navigate('GuideDetails', { guide });
       }

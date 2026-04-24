@@ -26,13 +26,35 @@ type RouteParams = {
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_PROCESSING_MS = 5 * 60 * 1000;
+const MAX_NETWORK_RETRIES = 3;
 const GRID_DIVS = 7;
 const BRACKET_LEN = 22;
 const BRACKET_THICK = 2;
 const CROSS_STROKE = 2;
 const PREVIEW_RADIUS = borderRadius.lg;
 
-function syntheticProgressPercent(elapsedSec: number, status: Guide['status']): number {
+interface StageText {
+  primary: string;
+  secondary: string;
+  stageLabel: string;
+}
+
+function stageText(elapsedSec: number, status: Guide['status']): StageText {
+  if (status === 'pending') {
+    if (elapsedSec < 5)  { return { primary: 'Queued for analysis',     secondary: 'Your image is in the queue',          stageLabel: 'QUEUED' }; }
+    if (elapsedSec < 20) { return { primary: 'Waiting in queue',        secondary: 'Almost your turn…',                   stageLabel: 'QUEUED' }; }
+    return                        { primary: 'Preparing to analyze',    secondary: 'Starting up the AI model…',           stageLabel: 'STARTING' };
+  }
+  if (status === 'processing') {
+    if (elapsedSec < 10) { return { primary: 'Analyzing your image',    secondary: 'Decoding pixels and loading AI model', stageLabel: 'ANALYZING' }; }
+    if (elapsedSec < 30) { return { primary: 'Extracting pose',         secondary: 'Identifying joints and body contours', stageLabel: 'ANALYZING' }; }
+    if (elapsedSec < 60) { return { primary: 'Finalizing your guide',   secondary: 'Rendering the pose overlay',           stageLabel: 'FINALIZING' }; }
+    return                        { primary: 'Almost there',            secondary: 'This image is taking a little longer', stageLabel: 'FINALIZING' };
+  }
+  return { primary: 'Working…', secondary: '', stageLabel: 'PROCESSING' };
+}
+
+function syntheticProgress(elapsedSec: number, status: Guide['status']): number {
   const rate = status === 'processing' ? 1.15 : 0.42;
   return Math.min(92, Math.round(8 + elapsedSec * rate));
 }
@@ -54,6 +76,7 @@ export const ProcessingScreen: React.FC = () => {
   const mountedRef = useRef(true);
   const startTimeRef = useRef(Date.now());
   const guideIdRef = useRef(guide.id);
+  const networkRetryCountRef = useRef(0);
   const scanAnim = useRef(new Animated.Value(0)).current;
   const updateGuideInList = useGuidesStore((state) => state.updateGuideInList);
   const navigationRef = useRef(navigation);
@@ -86,6 +109,8 @@ export const ProcessingScreen: React.FC = () => {
       try {
         const updated = await apiClient.getGuide(guideIdRef.current);
         if (!mountedRef.current) { return; }
+        // Successful poll — reset consecutive network error count.
+        networkRetryCountRef.current = 0;
         setGuide(updated);
         updateGuideInListRef.current(updated);
         if (updated.status === 'completed') {
@@ -101,9 +126,20 @@ export const ProcessingScreen: React.FC = () => {
         }
       } catch (error: any) {
         if (!mountedRef.current) { return; }
-        stopPolling();
-        setHasError(true);
-        setErrorMessage(error.message || 'Failed to check status');
+        networkRetryCountRef.current++;
+        if (networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
+          // Exponential backoff: 2 s → 4 s → 8 s before giving up.
+          const backoffMs = Math.pow(2, networkRetryCountRef.current) * 1000;
+          console.log(
+            `[ProcessingScreen] Network error, retry ${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES} in ${backoffMs}ms`
+          );
+          stopPolling();
+          if (mountedRef.current) { pollTimeoutRef.current = setTimeout(checkStatus, backoffMs); }
+        } else {
+          stopPolling();
+          setHasError(true);
+          setErrorMessage(error.message || 'Failed to check status');
+        }
       } finally {
         pollingRef.current = false;
       }
@@ -111,10 +147,9 @@ export const ProcessingScreen: React.FC = () => {
 
     checkStatus();
 
-    const ELAPSED_TICK_MS = 2000;
     const tickInterval = setInterval(() => {
       if (mountedRef.current) { setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000)); }
-    }, ELAPSED_TICK_MS);
+    }, 2000);
 
     return () => {
       mountedRef.current = false;
@@ -143,23 +178,8 @@ export const ProcessingScreen: React.FC = () => {
       ? scanAnim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(0, previewHeight - 3)] })
       : 0;
 
-  const primaryStatusLine = () => {
-    switch (guide.status) {
-      case 'pending': return 'Preparing analysis...';
-      case 'processing': return 'Extracting Pose...';
-      default: return 'Working...';
-    }
-  };
-
-  const secondaryStatusLine = () => {
-    switch (guide.status) {
-      case 'pending': return 'Your image is in the queue';
-      case 'processing': return 'Identifying skeleton joints and body contours';
-      default: return '';
-    }
-  };
-
-  const progressPct = syntheticProgressPercent(elapsedSec, guide.status);
+  const stage = stageText(elapsedSec, guide.status);
+  const progressPct = syntheticProgress(elapsedSec, guide.status);
   const sourceUri = getFullImageUrl(guide.sourceImageUrl);
   const gridLinesH = Array.from({ length: GRID_DIVS }, (_, i) => i);
   const gridLinesV = Array.from({ length: GRID_DIVS }, (_, i) => i);
@@ -211,11 +231,10 @@ export const ProcessingScreen: React.FC = () => {
                 <Animated.View pointerEvents="none" style={[styles.scanLine, { transform: [{ translateY: scanTranslate }] }]} />
               )}
             </View>
-            <Text style={styles.primaryStatus}>{primaryStatusLine()}</Text>
-            <Text style={styles.secondaryStatus}>{secondaryStatusLine()}</Text>
+            <Text style={styles.primaryStatus}>{stage.primary}</Text>
+            <Text style={styles.secondaryStatus}>{stage.secondary}</Text>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>PROCESSING</Text>
-              <Text style={styles.progressPercent}>{progressPct}%</Text>
+              <Text style={styles.stageLabel}>{stage.stageLabel}</Text>
             </View>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
@@ -265,9 +284,8 @@ function makeStyles(s: SemanticColors) {
     poseDotRight: { right: '12%', marginRight: -4 },
     primaryStatus: { marginTop: spacing.lg, fontSize: fontSize.xl, fontWeight: '700', color: s.text },
     secondaryStatus: { marginTop: spacing.sm, fontSize: fontSize.sm, color: s.textSecondary, lineHeight: 20 },
-    progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xs },
-    progressLabel: { fontSize: fontSize.xs, letterSpacing: 1.2, fontWeight: '600', color: s.textSecondary },
-    progressPercent: { fontSize: fontSize.sm, fontWeight: '700', color: s.accent },
+    progressHeader: { marginTop: spacing.xl, marginBottom: spacing.xs },
+    stageLabel: { fontSize: fontSize.xs, letterSpacing: 1.2, fontWeight: '600', color: s.textSecondary },
     progressTrack: { height: 4, borderRadius: 2, backgroundColor: s.surfaceMuted, overflow: 'hidden' },
     progressFill: { height: '100%', backgroundColor: s.accent, borderRadius: 2 },
     cancelButton: {

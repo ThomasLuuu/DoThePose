@@ -6,6 +6,7 @@ import { backgroundRemovalService, type SharedRgbaFrame } from './background_rem
 import { poseExtractionService, PoseKeypoints } from './pose_extraction';
 import { compositionExtractionService, CompositionElements } from './composition_extraction';
 import { fetchLineArt } from './line_art_onnx';
+import type { LineArtResult } from './line_art_onnx';
 import { lineRenderer } from './line_renderer';
 import { telemetry } from '../utils/telemetry';
 
@@ -137,21 +138,31 @@ class ProcessingPipeline {
       const portraitStart = Date.now();
       console.log(`[PIPELINE] Starting ONNX line-art extraction for guide ${guideId}`);
 
-      const lineArtBuffer = await fetchLineArt(imagePath, settings.style);
+      const lineArtResult: LineArtResult = await fetchLineArt(imagePath, settings.style);
 
-      console.log(`[PIPELINE] onnx_line_art: ${Date.now() - portraitStart}ms`);
+      console.log(
+        `[PIPELINE] onnx_line_art: ${Date.now() - portraitStart}ms` +
+        ` (pre:${lineArtResult.preMs}ms inf:${lineArtResult.inferenceMs}ms post:${lineArtResult.postMs}ms)`
+      );
       telemetry.recordStage(metric, 'onnx_line_art', true, portraitStart, {
         usedOnnx: true,
         styleVersion: settings.style || 'portrait_minimal',
+        onnxPreMs: lineArtResult.preMs,
+        onnxInferenceMs: lineArtResult.inferenceMs,
+        onnxPostMs: lineArtResult.postMs,
       });
 
       const renderStart = Date.now();
-      const normalizedGuideBuffer = await this.normalizeLineArt(lineArtBuffer);
-      await sharp(normalizedGuideBuffer).png().toFile(fullGuidePath);
-      await sharp(fullGuidePath)
-        .resize(200, 200, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png()
-        .toFile(fullThumbPath);
+      const normalizedGuideBuffer = await this.normalizeLineArt(lineArtResult.buffer);
+      // Write the guide PNG from memory buffer, then generate thumbnail from the same
+      // in-memory buffer to avoid an extra disk read.
+      await Promise.all([
+        sharp(normalizedGuideBuffer).png().toFile(fullGuidePath),
+        sharp(normalizedGuideBuffer)
+          .resize(200, 200, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toFile(fullThumbPath),
+      ]);
       console.log(`[PIPELINE] portrait_rendering: ${Date.now() - renderStart}ms`);
       telemetry.recordStage(metric, 'portrait_rendering', true, renderStart);
 
